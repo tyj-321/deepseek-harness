@@ -101,6 +101,35 @@ function sendError(res: ServerResponse, status: number, message: string): void {
   sendJson(res, status, { ok: false, error: message })
 }
 
+/**
+ * Extract the ZIP bytes from a request body. Accepts either a raw ZIP body
+ * (Content-Type: application/zip or octet-stream) or a multipart/form-data
+ * body with the archive in the `file` field.
+ */
+function extractZipBuffer(req: IncomingMessage, body: Buffer): Buffer {
+  const contentType = req.headers['content-type'] ?? ''
+  if (!contentType.includes('multipart/form-data')) return body
+
+  const boundaryMatch = /boundary=(?:("([^"]+)")|([^;]+))/i.exec(contentType)
+  const boundary = boundaryMatch?.[2] ?? boundaryMatch?.[3]
+  if (!boundary) throw new Error('Invalid multipart body: missing boundary')
+
+  const delimiter = Buffer.from(`--${boundary}`)
+  const start = body.indexOf(delimiter)
+  if (start === -1) throw new Error('Invalid multipart body: boundary not found')
+
+  // First part headers end at the first blank line after the opening boundary.
+  const headerEnd = body.indexOf('\r\n\r\n', start)
+  if (headerEnd === -1) throw new Error('Invalid multipart body: malformed part headers')
+
+  const partStart = headerEnd + 4
+  const partEnd = body.indexOf(delimiter, partStart)
+  if (partEnd === -1) throw new Error('Invalid multipart body: closing boundary not found')
+
+  // Strip the CRLF that precedes the closing boundary.
+  return body.subarray(partStart, partEnd - 2)
+}
+
 export function apply(ctx: Context, config: Config = DEFAULT_CONFIG): void {
   const dshHome = resolveDshHome()
   const skillsDir = join(dshHome, 'skills')
@@ -119,7 +148,7 @@ export function apply(ctx: Context, config: Config = DEFAULT_CONFIG): void {
       }
       try {
         const body = await readBody(req, config.maxZipSize)
-        const zip = new AdmZip(body)
+        const zip = new AdmZip(extractZipBuffer(req, body))
         const zipEntries = zip.getEntries()
 
         // Extract to a temporary directory

@@ -11,6 +11,12 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [previewSkill, setPreviewSkill] = useState<SkillInfo | null>(null)
+  const [toast, setToast] = useState<{ kind: 'success' | 'error'; text: string } | null>(null)
+
+  const showToast = (kind: 'success' | 'error', text: string) => {
+    setToast({ kind, text })
+    setTimeout(() => setToast(null), 3000)
+  }
 
   const load = async () => {
     try {
@@ -35,12 +41,12 @@ export default function App() {
       if (result.ok) {
         await load()
         setShowImport(false)
-        alert(`成功导入 ${result.count} 个技能：${result.imported.join(', ')}`)
+        showToast('success', `成功导入 ${result.count} 个技能：${result.imported.join(', ')}`)
       } else {
-        alert(`导入失败：${result.error ?? '未知错误'}`)
+        showToast('error', `导入失败：${result.error ?? '未知错误'}`)
       }
     } catch (err) {
-      alert(`导入失败：${err instanceof Error ? err.message : String(err)}`)
+      showToast('error', `导入失败：${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -49,8 +55,9 @@ export default function App() {
     try {
       await api.deleteSkill(name)
       await load()
+      showToast('success', `已删除技能 "${name}"`)
     } catch (err) {
-      alert(`删除失败：${err instanceof Error ? err.message : String(err)}`)
+      showToast('error', `删除失败：${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -68,6 +75,24 @@ export default function App() {
       {error && (
         <div style={{ padding: '12px', background: '#fee', border: '1px solid #fcc', borderRadius: '4px', marginBottom: '16px', color: '#c00' }}>
           {error}
+        </div>
+      )}
+
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          padding: '10px 20px',
+          background: toast.kind === 'success' ? '#f0f9eb' : '#fef0f0',
+          border: `1px solid ${toast.kind === 'success' ? '#c2e7b0' : '#fbc4c4'}`,
+          color: toast.kind === 'success' ? '#529b2e' : '#c45656',
+          borderRadius: '4px',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
+          zIndex: 9999,
+        }}>
+          {toast.text}
         </div>
       )}
 

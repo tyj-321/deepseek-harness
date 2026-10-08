@@ -10,10 +10,7 @@ export default function ImportDialog({ onImport, onClose }: Props) {
   const [importing, setImporting] = useState(false)
 
   const handleSubmit = async () => {
-    if (!file) {
-      alert('请选择一个 ZIP 文件')
-      return
-    }
+    if (!file) return
     setImporting(true)
     try {
       await onImport(file)

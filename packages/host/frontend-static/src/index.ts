@@ -140,8 +140,8 @@ export function apply(ctx: Context, config: Config): void {
         return
       }
     }
-    // Special route: `/iscai-import-skill` serves the skill import page.
-    if (rawPath === '/iscai-import-skill' || rawPath === '/iscai-import-skill/') {
+    // Special route: `/import-skill` serves the skill import page.
+    if (rawPath === '/import-skill' || rawPath === '/import-skill/') {
       rawPath = '/import-skill.html'
     }
     await serveStatic(decodeURIComponent(rawPath), res, distRoot, distIndex, renderIndex)
