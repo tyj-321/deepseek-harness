@@ -108,10 +108,18 @@ function npmPackageOf(id: string): string | undefined {
 }
 
 export default defineConfig({
+  // Base path for the built SPA. Defaults to `/iscai-dsh/` so the web UI can
+  // be served under a sub-path (e.g. behind a reverse proxy or alongside other
+  // apps on the same origin). Override with `DSH_WEB_BASE=/` for root serving.
+  base: process.env.DSH_WEB_BASE ?? '/iscai-dsh/',
   plugins: [rejectStandaloneServe(), clientDocumentTitle(), react()],
   build: {
     sourcemap: true,
     rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        'import-skill': fileURLToPath(new URL('./import-skill.html', import.meta.url)),
+      },
       output: {
         // Output layout: the two main chunks stay at assets/ root; lazy
         // @shikijs/langs grammar chunks group under assets/langs/; fonts

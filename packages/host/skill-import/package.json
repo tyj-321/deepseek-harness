@@ -1,0 +1,21 @@
+{
+  "name": "@deepseek-ai/dsh-skill-import",
+  "description": "Skill import API: upload ZIP, scan, preview, delete skills in ~/.dsh/skills",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "workspace:^",
+    "@deepseek-ai/dsh-host-webserver": "workspace:^",
+    "@deepseek-ai/dsh-home-paths": "workspace:^",
+    "@deepseek-ai/schemastery": "workspace:^",
+    "adm-zip": "^0.5.16"
+  },
+  "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
+    "typescript": "^6.0.3"
+  }
+}

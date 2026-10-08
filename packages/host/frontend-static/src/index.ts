@@ -28,10 +28,17 @@ export const inject = ['webServer']
 export interface Config {
   /** Absolute path of index.html inside the dist root. */
   distIndex: string
+  /**
+   * Base path the SPA is served under (e.g. `/iscai-dsh`). Requests under this
+   * prefix are stripped before hitting the dist root; requests outside it 404.
+   * Defaults to `/` (root serving).
+   */
+  basePath?: string
 }
 
 export const Config: z<Config> = z.object({
   distIndex: z.string().required(),
+  basePath: z.string().default('/'),
 })
 
 const HTML_MIME = 'text/html; charset=utf-8'
@@ -104,6 +111,10 @@ export async function serveStatic(
 export function apply(ctx: Context, config: Config): void {
   const distIndex = config.distIndex
   const distRoot = dirname(distIndex)
+  // Normalize the base path: strip trailing slash so `/iscai-dsh/` and
+  // `/iscai-dsh` both match, and ensure it starts with `/`.
+  const rawBasePath = config.basePath ?? '/'
+  const basePath = rawBasePath === '/' ? '' : rawBasePath.replace(/\/+$/, '')
   const renderIndex = async (): Promise<string> =>
     ctx.webServer.renderIndex(await readFile(distIndex, 'utf8'))
   ctx.effect(() => ctx.webServer.registerFallback(async (req, res) => {
@@ -115,7 +126,24 @@ export function apply(ctx: Context, config: Config): void {
       return
     }
     /* v8 ignore next -- node:http always sets url on server requests */
-    const rawPath = new URL(req.url ?? '/', 'http://x').pathname
+    let rawPath = new URL(req.url ?? '/', 'http://x').pathname
+    // Strip the configured base path so `/iscai-dsh/assets/xxx.js` maps to
+    // `dist/assets/xxx.js`. Requests outside the base path 404.
+    if (basePath !== '') {
+      if (rawPath === basePath || rawPath === `${basePath}/`) {
+        rawPath = '/'
+      } else if (rawPath.startsWith(`${basePath}/`)) {
+        rawPath = rawPath.slice(basePath.length)
+      } else {
+        res.writeHead(404)
+        res.end()
+        return
+      }
+    }
+    // Special route: `/iscai-import-skill` serves the skill import page.
+    if (rawPath === '/iscai-import-skill' || rawPath === '/iscai-import-skill/') {
+      rawPath = '/import-skill.html'
+    }
     await serveStatic(decodeURIComponent(rawPath), res, distRoot, distIndex, renderIndex)
   }), 'frontend-static: fallback seat')
 }

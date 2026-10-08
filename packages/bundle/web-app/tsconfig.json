@@ -27,6 +27,9 @@
       "path": "../../host/frontend-static"
     },
     {
+      "path": "../../host/skill-import"
+    },
+    {
       "path": "../../host/webserver"
     },
     {
