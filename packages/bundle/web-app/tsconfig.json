@@ -30,6 +30,9 @@
       "path": "../../host/skill-import"
     },
     {
+      "path": "../../host/voice-asr"
+    },
+    {
       "path": "../../host/webserver"
     },
     {

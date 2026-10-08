@@ -288,6 +288,11 @@
     - id: ui-plan
       name: '@deepseek-ai/dsh-client-ui-plan'
 
+    # Voice input: wake-word triggered recording with VAD auto-stop, ASR via
+    # host proxy, result appended to the composer draft.
+    - id: ui-voice-input
+      name: '@deepseek-ai/dsh-client-ui-voice-input'
+
     - id: ui-user-questions
       name: '@deepseek-ai/dsh-client-ui-user-questions'
 

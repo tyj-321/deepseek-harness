@@ -870,3 +870,17 @@ export const IconArchiveOutline20 = ({ size = 20, className }: IconProps) => (
     <path d="M12.7962 12.5661V11.0832H7.20548V12.5661L12.7962 12.5661Z" fill="currentColor" />
   </svg>
 )
+
+/** ic_ds_microphone_outline_16: microphone glyph for the voice input trigger. */
+export const IconMicrophoneOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M8 1.5C6.61929 1.5 5.5 2.61929 5.5 4V8C5.5 9.38071 6.61929 10.5 8 10.5C9.38071 10.5 10.5 9.38071 10.5 8V4C10.5 2.61929 9.38071 1.5 8 1.5ZM6.8 4C6.8 3.33726 7.33726 2.8 8 2.8C8.66274 2.8 9.2 3.33726 9.2 4V8C9.2 8.66274 8.66274 9.2 8 9.2C7.33726 9.2 6.8 8.66274 6.8 8V4Z"
+      fill="currentColor"
+    />
+    <path
+      d="M3.5 7.3C3.85801 7.3 4.15 7.59199 4.15 7.95V8C4.15 10.1373 5.86274 11.85 8 11.85C10.1373 11.85 11.85 10.1373 11.85 8V7.95C11.85 7.59199 12.142 7.3 12.5 7.3C12.858 7.3 13.15 7.59199 13.15 7.95V8C13.15 10.6036 11.2051 12.7547 8.65 13.1104V14.5C8.65 14.858 8.35801 15.15 8 15.15C7.64199 15.15 7.35 14.858 7.35 14.5V13.1104C4.79487 12.7547 2.85 10.6036 2.85 8V7.95C2.85 7.59199 3.14199 7.3 3.5 7.3Z"
+      fill="currentColor"
+    />
+  </svg>
+)

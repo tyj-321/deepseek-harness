@@ -1,0 +1,130 @@
+.overlay {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  padding-bottom: 8px;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.panel {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--dsw-alias-bg-primary, #fff);
+  border: 1px solid var(--dsw-alias-border-l2-darkmode-thin, rgba(0, 0, 0, 0.08));
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.listeningRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wave {
+  display: flex;
+  align-items: flex-end;
+  height: 20px;
+  gap: 2px;
+}
+
+.waveBar {
+  width: 3px;
+  height: 8px;
+  background: linear-gradient(to top, #2250f2, #0ebcf3);
+  border-radius: 2px;
+  animation: wave 1.2s ease-in-out infinite;
+}
+
+.waveBar:nth-child(2) {
+  animation-delay: 0.1s;
+  height: 12px;
+}
+
+.waveBar:nth-child(3) {
+  animation-delay: 0.2s;
+  height: 16px;
+}
+
+.waveBar:nth-child(4) {
+  animation-delay: 0.3s;
+  height: 12px;
+}
+
+.waveBar:nth-child(5) {
+  animation-delay: 0.4s;
+  height: 8px;
+}
+
+@keyframes wave {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(1.6); }
+}
+
+.textColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statusText {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dsw-alias-label-primary, #333);
+  white-space: nowrap;
+}
+
+.hintText {
+  font-size: 11px;
+  color: var(--dsw-alias-label-tertiary, #999);
+  white-space: nowrap;
+}
+
+.convertingRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(34, 80, 242, 0.2);
+  border-top: 2px solid #2250f2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.errorText {
+  font-size: 12px;
+  color: #f04438;
+  white-space: nowrap;
+}
+
+.stopButton {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 6px;
+  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
+  color: var(--dsw-alias-label-secondary, #666);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.stopButton:hover {
+  background: var(--dsw-alias-border-l4, rgba(0, 0, 0, 0.1));
+}

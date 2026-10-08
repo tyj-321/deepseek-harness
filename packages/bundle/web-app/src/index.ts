@@ -20,6 +20,7 @@ import z from '@deepseek-ai/schemastery'
 import { addHarnessSourceSection } from '@deepseek-ai/dsh-app-boot'
 import * as FrontendStatic from '@deepseek-ai/dsh-host-frontend-static'
 import * as SkillImport from '@deepseek-ai/dsh-skill-import'
+import * as VoiceAsr from '@deepseek-ai/dsh-voice-asr'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
@@ -236,6 +237,7 @@ export function apply(ctx: Context, config: Config): void {
     basePath: process.env.DSH_WEB_BASE ?? '/iscai-dsh',
   })
   ctx.plugin(SkillImport, { maxZipSize: 10 * 1024 * 1024 })
+  ctx.plugin(VoiceAsr, {})
   if (config.surfaceContext) {
     ctx.inject(['systemPrompt'], (promptCtx) => {
       addHarnessSourceSection(promptCtx, SOURCE_ROOT)
