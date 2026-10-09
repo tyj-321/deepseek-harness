@@ -66,6 +66,7 @@ export function renderToolDetails(
     return <ToolDetails
       block={details.block}
       cwd={details.cwd}
+      openUrl={details.openUrl}
       useHostDescription={selector => selector(description)}
       t={t}
     />

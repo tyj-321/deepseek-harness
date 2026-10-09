@@ -27,13 +27,15 @@ export interface AssistantMarkdownProps {
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   /** Resolved prose file mentions for this Assistant's closing turn. */
   mentions?: MarkdownFileMentions | undefined
+  /** Route external link clicks to the embedded browser panel. */
+  openUrl?: ChatNodeOwnerProps['openUrl'] | undefined
   /** The owning view's locale seat, passed down as a plain prop. */
   t: ChatViewSlotProps['t']
 }
 
 /** Reasoning block as the Think variant summary row (figma 39:28304). */
 export const AssistantMarkdown = memo(function AssistantMarkdown({
-  blocks, streaming, interrupted, renderMessageImages, mentions, t,
+  blocks, streaming, interrupted, renderMessageImages, mentions, openUrl, t,
 }: AssistantMarkdownProps) {
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
@@ -59,6 +61,7 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
             streaming={streaming}
             codeLabels={codeLabels}
             fileMentions={mentions}
+            onOpenUrl={openUrl}
           />,
         )
         break

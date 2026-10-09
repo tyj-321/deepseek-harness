@@ -39,6 +39,8 @@ export interface ToolCallOwnerProps {
   home?: string | undefined
   /** Open a Tool argument path through the Host. */
   openFile: (path: string) => void
+  /** Open an http(s) link in the embedded browser panel (or system browser). */
+  openUrl: (url: string) => void
   /** Inspect this call in the trajectory view when available. */
   inspect?: (() => void) | undefined
 }

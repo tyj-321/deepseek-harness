@@ -63,6 +63,9 @@
       "path": "../ui-layout"
     },
     {
+      "path": "../ui-browser-panel"
+    },
+    {
       "path": "../locale"
     },
     {

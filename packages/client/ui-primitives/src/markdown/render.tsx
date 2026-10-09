@@ -130,6 +130,12 @@ export interface MarkdownRenderContext {
   readonly fileMentions: MarkdownFileMentions | undefined
   /** Inside an anchor's children: interactive mentions must not nest there. */
   readonly inLink?: boolean
+  /**
+   * In-app URL opener: when present, http(s) links render without
+   * target=_blank and route the click here (the embedded browser panel)
+   * instead of the system browser.
+   */
+  readonly onOpenUrl?: ((url: string) => void) | undefined
   /** Reference targets visible to this pass. */
   readonly targets: ReferenceTargets
   /** Footnote identifiers in first-reference order; a footnote's number is its 1-based index here. */
@@ -242,7 +248,7 @@ function renderNode(node: Md.RootContent, key: Key, context: MarkdownRenderConte
       // authored text, not a parsed destination, so no normalizeUri: port,
       // path, and query render unchanged.
       const href = inlineCodeHttpUrl(value)
-      if (href !== undefined) return <code key={key}>{renderSafeLink(href, [value], 'link')}</code>
+      if (href !== undefined) return <code key={key}>{renderSafeLink(href, [value], 'link', context.onOpenUrl)}</code>
       // A token the owner's file-mention vocabulary recognizes opens that
       // file; the resolver, not this renderer, decides what names a file.
       // Inside an anchor the token stays inert — a button cannot nest there.
@@ -281,7 +287,7 @@ function renderNode(node: Md.RootContent, key: Key, context: MarkdownRenderConte
     case 'table':
       return renderTable(node, key, context)
     case 'link':
-      return renderAnchor(node.url, renderChildren(node.children, { ...context, inLink: true }), key)
+      return renderAnchor(node.url, renderChildren(node.children, { ...context, inLink: true }), key, context.onOpenUrl)
     case 'linkReference':
       return renderLinkReference(node, key, context)
     case 'image':
@@ -454,10 +460,26 @@ function renderTableRow(
 }
 
 /** Anchor over an already-authored href: allowlisted or unwrapped, external links get the safe attributes. */
-function renderSafeLink(href: string, children: ReactNode[], key: Key): ReactNode {
+function renderSafeLink(href: string, children: ReactNode[], key: Key, onOpenUrl?: (url: string) => void): ReactNode {
   const safeHref = sanitizeUrl(href)
   if (safeHref === '') return <Fragment key={key}>{children}</Fragment>
   const external = ['http:', 'https:'].includes(new URL(safeHref).protocol)
+  // The in-app opener takes over external navigation; href stays for the
+  // status hint and right-click copy, but the click routes to the panel.
+  if (external && onOpenUrl !== undefined) {
+    return (
+      <a
+        key={key}
+        href={safeHref}
+        onClick={(event) => {
+          event.preventDefault()
+          onOpenUrl(safeHref)
+        }}
+      >
+        {children}
+      </a>
+    )
+  }
   return (
     <a
       key={key}
@@ -470,8 +492,8 @@ function renderSafeLink(href: string, children: ReactNode[], key: Key): ReactNod
 }
 
 /** Anchor over a parsed markdown destination, which hast normalized before the allowlist saw it. */
-function renderAnchor(url: string, children: ReactNode[], key: Key): ReactNode {
-  return renderSafeLink(normalizeUri(url), children, key)
+function renderAnchor(url: string, children: ReactNode[], key: Key, onOpenUrl?: (url: string) => void): ReactNode {
+  return renderSafeLink(normalizeUri(url), children, key, onOpenUrl)
 }
 
 /**
@@ -527,7 +549,7 @@ function renderLinkReference(
     // not an anchor, so mentions inside it stay live.
     return <Fragment key={key}>{'['}{renderChildren(node.children, context)}{referenceSuffix(node)}</Fragment>
   }
-  return renderAnchor(definition.url, renderChildren(node.children, { ...context, inLink: true }), key)
+  return renderAnchor(definition.url, renderChildren(node.children, { ...context, inLink: true }), key, context.onOpenUrl)
 }
 
 function renderImageReference(

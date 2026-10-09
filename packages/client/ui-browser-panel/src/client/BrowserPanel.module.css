@@ -1,0 +1,162 @@
+/* Browser panel: fills the layout's rightmost browser column. The column
+   track owns the width (drag-resizable through the layout store); the panel
+   only paints its own surface. */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  background: var(--dsw-alias-bg-base);
+}
+
+/* Header: globe + address field + refresh / external / close actions. */
+.header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 8px 0 12px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.headerIcon {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.address {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  outline: none;
+}
+
+.address:focus {
+  border-color: var(--dsw-alias-state-business-primary);
+}
+
+.action {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.action:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.action:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Loading signal: a pulsing bar across the body's top edge. */
+.bodyLoading::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--dsw-alias-state-business-primary);
+  animation: browser-panel-loading 1.2s ease-in-out infinite;
+}
+
+@keyframes browser-panel-loading {
+  0%, 100% {
+    opacity: 0.2;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+/* The guest page fills the body; webview/iframe share the rule. */
+.guest {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: none;
+  background: var(--dsw-alias-bg-base);
+}
+
+.placeholder {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* Load failure overlays the (blank) guest surface. */
+.failure {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  background: var(--dsw-alias-bg-base);
+  text-align: center;
+}
+
+.failureTitle {
+  color: var(--dsw-alias-state-error-primary);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.failureDetail {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  line-height: 19px;
+}
+
+.failureAction {
+  margin-top: 8px;
+  padding: 6px 14px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}
+
+.failureAction:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}

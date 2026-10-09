@@ -71,6 +71,17 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      */
     'details': { kind: 'single'; scope: 'session'; owner: DetailsOwnerProps }
     /**
+     * The rightmost browser column, shown when the layout opens it. OCCUPIED
+     * by ui-browser-panel's BrowserPanel — registering here replaces the
+     * column outright. Absent an occupant the column renders nothing (the
+     * open transition still resizes the grid, so a deployment without the
+     * browser plugin should never call `layout.openBrowser()`).
+     *
+     * No owner props: `ctx.layout` owns whether the column is open, and the
+     * occupant reads its own service (ctx.browserPanel) for the URL state.
+     */
+    'browser': { kind: 'single'; scope: 'root'; owner: BrowserOwnerProps }
+    /**
      * Frame-wide floating layer, above every column and outside their scroll
      * containers. Deliberately generic and unowned by any feature: a badge, a
      * toast stack or a status pill all belong here, and entries order among
@@ -104,6 +115,9 @@ export interface ConvOwnerProps {}
 /** Details owner share: empty — sessionId arrives as a framework-standard prop. */
 export interface DetailsOwnerProps {}
 
+/** Browser owner share: empty — the occupant reads its own service for state. */
+export interface BrowserOwnerProps {}
+
 /** Required services (cordis fiber inject — the loader passes all module exports as an object plugin). */
 export const inject = ['slots', 'theme']
 
@@ -123,6 +137,7 @@ export function apply(ctx: ClientContext): void {
         'sidebar': { kind: 'single', scope: 'root' },
         'conversation': { kind: 'single', scope: 'session-maybe' },
         'details': { kind: 'single', scope: 'session' },
+        'browser': { kind: 'single', scope: 'root' },
         'shell.overlay': { kind: 'list', scope: 'root' },
       },
       // Exclusive store: the factory itself — the framework instantiates per

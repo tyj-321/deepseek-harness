@@ -16,8 +16,8 @@ import css from './ToolDetails.module.css'
  * @returns the details output body.
  */
 export function ToolDetails({
-  block, cwd, useHostDescription, t,
-}: Pick<ToolDetailsProps, 'block' | 'cwd' | 'useHostDescription' | 't'>) {
+  block, cwd, openUrl, useHostDescription, t,
+}: Pick<ToolDetailsProps, 'block' | 'cwd' | 'openUrl' | 'useHostDescription' | 't'>) {
   const home = useHostDescription(description => description?.home)
   const terminal = terminalCardModel(block, cwd)
   if (terminal !== null) {
@@ -48,7 +48,7 @@ export function ToolDetails({
     const body = 'kind' in block ? resultText(block) : ''
     return (
       <>
-        <WebBlock {...web} className={css.web} />
+        <WebBlock {...web} onOpenUrl={openUrl} className={css.web} />
         {body !== '' ? <pre className={css.code}>{body}</pre> : null}
       </>
     )

@@ -50,6 +50,8 @@ export interface WebSearchBlockProps {
   truncated: boolean
   /** Extra class merged onto the wrapper (callers position; this component draws). */
   className?: string | undefined
+  /** In-app URL opener; when present, source links route here instead of the system browser. */
+  onOpenUrl?: ((url: string) => void) | undefined
 }
 
 /** A `web_fetch` card: the retrieval summary for one fetched URL. */
@@ -63,6 +65,8 @@ export interface WebFetchBlockProps {
   truncated: boolean
   /** Extra class merged onto the wrapper (callers position; this component draws). */
   className?: string | undefined
+  /** In-app URL opener; when present, the URL link routes here instead of the system browser. */
+  onOpenUrl?: ((url: string) => void) | undefined
 }
 
 /** A completed web retrieval card, discriminated by `kind`. */
@@ -108,15 +112,36 @@ function linkLabel(url: string, title: string | undefined): string {
 
 /**
  * A single URL rendered as a safe external anchor, or as plain text when the
- * URL is not an http(s) link.
+ * URL is not an http(s) link. When `onOpenUrl` is present the click routes to
+ * the embedded browser panel instead of the system browser.
  * @param props.url - the URL to render.
  * @param props.label - the visible label.
  * @param props.className - class for the anchor or the plain span.
+ * @param props.onOpenUrl - in-app opener for the click.
  * @returns the anchor or span element.
  */
-function SafeLink({ url, label, className }: { url: string; label: string; className?: string | undefined }) {
+function SafeLink({ url, label, className, onOpenUrl }: {
+  url: string
+  label: string
+  className?: string | undefined
+  onOpenUrl?: ((url: string) => void) | undefined
+}) {
   const href = safeHref(url)
   if (href === undefined) return <span className={className}>{label}</span>
+  if (onOpenUrl !== undefined) {
+    return (
+      <a
+        className={className}
+        href={href}
+        onClick={(event) => {
+          event.preventDefault()
+          onOpenUrl(href)
+        }}
+      >
+        {label}
+      </a>
+    )
+  }
   return (
     <a className={className} href={href} target="_blank" rel="noopener noreferrer">
       {label}
@@ -133,10 +158,14 @@ function SafeLink({ url, label, className }: { url: string; label: string; class
  * @param props.ordinal - the source's 1-based position in the full list.
  * @returns the source list item.
  */
-function SourceItem({ source, ordinal }: { source: WebSourceView; ordinal: number }) {
+function SourceItem({ source, ordinal, onOpenUrl }: {
+  source: WebSourceView
+  ordinal: number
+  onOpenUrl?: ((url: string) => void) | undefined
+}) {
   return (
     <li className={css.source} value={ordinal}>
-      <SafeLink url={source.url} label={linkLabel(source.url, source.title)} className={css.sourceLink} />
+      <SafeLink url={source.url} label={linkLabel(source.url, source.title)} className={css.sourceLink} onOpenUrl={onOpenUrl} />
       {source.snippet !== undefined && source.snippet !== '' && (
         <div className={css.snippet}>{source.snippet}</div>
       )}
@@ -153,7 +182,7 @@ function SourceItem({ source, ordinal }: { source: WebSourceView; ordinal: numbe
  * @param props - see {@link WebSearchBlockProps}.
  * @returns the search card element.
  */
-function WebSearchBlock({ answer, sources, truncated, className }: WebSearchBlockProps) {
+function WebSearchBlock({ answer, sources, truncated, className, onOpenUrl }: WebSearchBlockProps) {
   // A provider may legitimately return no answer and no sources; the chat WebRow
   // does not show the raw result content, so without this the user would see an
   // empty card. Mirror the backend's `No results found.` render text.
@@ -161,13 +190,13 @@ function WebSearchBlock({ answer, sources, truncated, className }: WebSearchBloc
   return (
     <div className={clsx(css.block, className)} data-web="search">
       {answer !== undefined && answer !== '' && (
-        <div className={css.answer}><MarkdownText text={answer} /></div>
+        <div className={css.answer}><MarkdownText text={answer} onOpenUrl={onOpenUrl} /></div>
       )}
       {empty ? (
         <div className={css.empty}>未找到结果</div>
       ) : (
         <ol className={css.sources}>
-          {sources.map((source, index) => <SourceItem key={index} source={source} ordinal={index + 1} />)}
+          {sources.map((source, index) => <SourceItem key={index} source={source} ordinal={index + 1} onOpenUrl={onOpenUrl} />)}
         </ol>
       )}
       {truncated && <div className={css.truncated}>来源列表已截断</div>}
@@ -180,10 +209,10 @@ function WebSearchBlock({ answer, sources, truncated, className }: WebSearchBloc
  * @param props - see {@link WebFetchBlockProps}.
  * @returns the fetch card element.
  */
-function WebFetchBlock({ url, statusCode, truncated, className }: WebFetchBlockProps) {
+function WebFetchBlock({ url, statusCode, truncated, className, onOpenUrl }: WebFetchBlockProps) {
   return (
     <div className={clsx(css.block, css.fetch, className)} data-web="fetch">
-      <SafeLink url={url} label={url} className={css.fetchUrl} />
+      <SafeLink url={url} label={url} className={css.fetchUrl} onOpenUrl={onOpenUrl} />
       <div className={css.fetchMeta}>
         <span className={css.status}>HTTP {statusCode}</span>
         {truncated && <span className={css.truncated}>内容已截断</span>}

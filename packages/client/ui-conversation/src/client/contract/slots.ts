@@ -421,6 +421,11 @@ export interface ChatNodeOwnerProps {
   openFile: (path: string) => void
   inspectCall: (callId: CallId) => void
   forkAt: (seq: number) => void
+  /**
+   * Open an http(s) link in the embedded browser panel (the ui-browser-panel
+   * service); falls back to the system browser when the panel is absent.
+   */
+  openUrl: (url: string) => void
   /** Render a historical image group through the attachment slot. */
   renderMessageImages: RenderMessageImages
   fileMentions: (owner: TurnTailOwnerProps) => MarkdownFileMentions | undefined
@@ -436,6 +441,8 @@ export interface DetailsToolOwnerProps {
   block: ToolCallBlock
   /** Session workspace root for card cwd and relative-path display. */
   cwd?: string | undefined
+  /** Open an http(s) link in the embedded browser panel (or system browser). */
+  openUrl: (url: string) => void
 }
 
 /**
@@ -757,6 +764,12 @@ export interface ChatViewInjected {
    * hand the path off (the chat view shows that reason and a retry).
    */
   openFile: (path: string) => Promise<void>
+  /**
+   * Open an http(s) link in the embedded browser panel when the
+   * ui-browser-panel plugin is composed in; falls back to the system browser
+   * otherwise.
+   */
+  openUrl: (url: string) => void
   loadOlder: () => void
   /** Resolve a session-authorized historical image for inline display. */
   loadImage: (attachment: ImageAttachmentRef) => Promise<string>
@@ -804,6 +817,8 @@ export type MessageImagesProps = PropsRuntime<'conversation.message.images'> & P
 export interface DetailsInjected {
   /** Close the details panel (layout geometry stays with ctx.layout). */
   closeDetails: () => void
+  /** Open an http(s) link in the embedded browser panel (or system browser). */
+  openUrl: (url: string) => void
 }
 
 /** Full details-slot props: selection store, Tool output seat, injected close callback, and locale. */

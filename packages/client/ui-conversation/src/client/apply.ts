@@ -8,6 +8,9 @@ import {
 // goes through the service, never a value import (client bundle purity gate).
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+// Type-only: the ui-browser-panel Context merge (ctx.browserPanel); link clicks
+// read the service through ctx.get and fall back to the system browser.
+import type {} from '@deepseek-ai/dsh-client-ui-browser-panel/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { ViewTab } from './contract/views.ts'
@@ -397,6 +400,13 @@ export function apply(ctx: Context): void {
           layout.openDetails()
         },
         fileMentions: owner => ctx.get('chatFileMentions')?.forClosing(owner),
+        // Links route to the embedded browser panel when that plugin is
+        // composed in; otherwise the system browser keeps the click.
+        openUrl: (url) => {
+          const panel = ctx.get('browserPanel')
+          if (panel !== undefined) panel.open(url)
+          else window.open(url, '_blank', 'noopener,noreferrer')
+        },
         openFile: (path) => {
           const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd
           return workspaces.openPath(resolveWorkspacePath(cwd, path))
@@ -452,6 +462,11 @@ export function apply(ctx: Context): void {
     store: chatStore,
     inject: (): DetailsInjected => ({
       closeDetails: () => { layout.closeDetails() },
+      openUrl: (url) => {
+        const panel = ctx.get('browserPanel')
+        if (panel !== undefined) panel.open(url)
+        else window.open(url, '_blank', 'noopener,noreferrer')
+      },
     }),
   }, DetailsPanel)
 

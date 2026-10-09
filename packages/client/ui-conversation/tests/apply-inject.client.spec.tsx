@@ -347,13 +347,19 @@ describe('conversation slot inject API', () => {
 })
 
 describe('details inject API', () => {
-  it('details injects the one layout callback; selection rides the shared store instead', async () => {
+  it('details injects the layout callback and the link opener; selection rides the shared store instead', async () => {
     const b = await bench()
     const entry = b.entryOf('details')
     const injected = (entry.inject as unknown as () => DetailsInjected)()
-    expect(Object.keys(injected)).toEqual(['closeDetails'])
+    expect(Object.keys(injected)).toEqual(['closeDetails', 'openUrl'])
     injected.closeDetails()
     expect(b.layoutFake.closeDetails).toHaveBeenCalledTimes(1)
+    // No browserPanel service on the test bench: the link opener falls back to
+    // a system-browser window.open.
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    injected.openUrl('https://example.com')
+    expect(openSpy).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer')
+    openSpy.mockRestore()
     // The shared handle: details resolves the SAME instance conversation writes.
     const conv = b.runtime.storeOf('conversation.session', ROOT)
     const details = b.runtime.storeOf('details', ROOT)

@@ -86,6 +86,8 @@ export interface ToolRowProps {
    * list or fetched-source card when present.
    */
   web?: WebBlockProps | null | undefined
+  /** Route web-card link clicks to the embedded browser panel. */
+  onOpenUrl?: ((url: string) => void) | undefined
   state: ToolRowState
   /**
    * Filesystem path from tool args; when set with onOpenFile, the summary
@@ -141,6 +143,7 @@ export function ToolRow({
   read,
   search,
   web,
+  onOpenUrl,
   state,
   filePath,
   onOpenFile,
@@ -259,7 +262,7 @@ export function ToolRow({
                     </>
                   )
                   : webBody !== null
-                    ? <WebBlock {...webBody} className={css.webBody} />
+                    ? <WebBlock {...webBody} onOpenUrl={onOpenUrl} className={css.webBody} />
                     : (
                       <>
                         {variant === 'code' && body !== null && (
