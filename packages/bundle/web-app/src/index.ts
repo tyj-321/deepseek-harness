@@ -232,6 +232,13 @@ export function apply(ctx: Context, config: Config): void {
   const handoffBrowser = config.openBrowser && !launchedThroughSsh(ctx)
   // Release dependent rows only after bind-dependent trust has been sampled once.
   ctx.provide(WEB_RUNTIME_SERVICE, runtime)
+  // Expose the deployment's trusted authorities to the browser so the client
+  // `isLoopback` gate can treat them as trusted (mirrors the /api Host fence's
+  // trust decision). Read fresh at emit time so the served page always carries
+  // the active bind's LAN literals plus explicit --trusted-host entries.
+  ctx.on('webserver/index-inject', (table) => {
+    table.push({ kind: 'global', name: '__DSH_TRUSTED_HOSTS__', value: runtime.trustedHosts })
+  })
   ctx.plugin(FrontendStatic, {
     distIndex: internals.resolveDistIndex(),
     basePath: process.env.DSH_WEB_BASE ?? '/iscai-dsh',

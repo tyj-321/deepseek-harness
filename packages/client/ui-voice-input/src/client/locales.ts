@@ -3,7 +3,6 @@
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'button.start': '语音输入',
-  'button.wake': '右键开启唤醒词监听',
   'button.stop': '停止语音输入',
   'overlay.wakeListening': '正在监听唤醒词…',
   'overlay.wakeHint': '说"小海小海"唤醒',
@@ -34,7 +33,6 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
   'button.start': 'Voice input',
-  'button.wake': 'Right-click for wake-word mode',
   'button.stop': 'Stop voice input',
   'overlay.wakeListening': 'Listening for wake word…',
   'overlay.wakeHint': 'Say the wake word to begin',

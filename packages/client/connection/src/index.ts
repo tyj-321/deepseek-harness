@@ -144,7 +144,11 @@ export function apply(ctx: Context, config?: ConnectionConfig): void {
         : undefined
       if (method !== undefined
         && PRIVILEGED_METHODS.has(method)
-        && !isTrustedApiRequest(request, [])) {
+        // Deployment override (iscai LAN hosting): trustedHosts also unlock the
+        // privileged configuration plane, not just the generic /api fence. The
+        // upstream default passes [] here to pin these methods to loopback; this
+        // deployment has no auth layer and trusts the whole LAN segment instead.
+        && !isTrustedApiRequest(request, trustedHosts)) {
         return new Response('forbidden', { status: 403 })
       }
       if (request.method === 'GET' && (pathname === MUX_EVENTS_PATH || pathname === HOST_EVENTS_PATH)) {

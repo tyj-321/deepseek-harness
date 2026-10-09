@@ -56,9 +56,25 @@ export function apply(ctx: ClientContext): void {
         asrPath: settings.asrPath,
       })
       controllers.set(sessionId, controller)
+      // Start the background wake loop for the fresh controller when enabled.
+      if (policy.current.enabled) void controller.ensureWakeListening()
     }
     return controller
   }
+
+  // Background wake-word listening: run whenever voice input is enabled.
+  // Clicking the microphone button layers a manual round on top of the loop.
+  const syncWakeListening = (): void => {
+    const enabled = policy.current.enabled
+    for (const controller of controllers.values()) {
+      if (enabled) {
+        void controller.ensureWakeListening()
+      } else {
+        void controller.stop()
+      }
+    }
+  }
+  policy.store.subscribe(syncWakeListening)
 
   // Microphone button in the composer tool row.
   ctx.slots.inject('conversation.input.right', () => {

@@ -43,6 +43,8 @@ export interface WakeRecorderOptions {
   onWake?: (text: string) => void
   /** Error notification (permission, ASR failure, …). */
   onError?: (message: string) => void
+  /** A finished capture is about to be recognized; clears a previous error. */
+  onRoundStart?: () => void
 }
 
 export class WakeRecorder {
@@ -53,6 +55,11 @@ export class WakeRecorder {
   private disposed = false
   /** 'manual' = single-shot recording; 'wake' = continuous wake-word loop. */
   private mode: 'manual' | 'wake' = 'manual'
+  /**
+   * When true, a finished manual round returns to the wake-listening loop
+   * instead of idle (background wake listening stays on).
+   */
+  private returnToWake = false
 
   constructor(private readonly options: WakeRecorderOptions) {}
 
@@ -67,6 +74,7 @@ export class WakeRecorder {
   async startManual(): Promise<void> {
     if (this.state !== 'idle') return
     this.mode = 'manual'
+    this.returnToWake = false
     if (!(await this.ensurePermission())) return
     this.disposed = false
     this.awake = false
@@ -82,6 +90,7 @@ export class WakeRecorder {
   async startWake(): Promise<void> {
     if (this.state !== 'idle') return
     this.mode = 'wake'
+    this.returnToWake = false
     if (!(await this.ensurePermission())) return
     this.disposed = false
     this.awake = false
@@ -90,10 +99,25 @@ export class WakeRecorder {
     await this.startRecording()
   }
 
+  /**
+   * Switch the running wake loop to manual mode: the current round's
+   * transcript becomes the command. When the round finishes the recorder
+   * returns to the wake-listening loop (background listening stays on).
+   * No-op when idle.
+   */
+  switchToManual(): void {
+    if (this.state === 'idle') return
+    this.mode = 'manual'
+    this.returnToWake = true
+    this.awake = false
+    this.setState('recording')
+  }
+
   /** Stop everything and release the microphone. */
   async stop(): Promise<void> {
     this.disposed = true
     this.awake = false
+    this.returnToWake = false
     const recorder = this.recorder
     this.recorder = null
     this.setState('idle')
@@ -112,7 +136,7 @@ export class WakeRecorder {
       await (Recorder as unknown as { getPermission: () => Promise<void> }).getPermission()
       return true
     } catch {
-      this.options.onError?.('mic-denied')
+      this.options.onError?.('micDenied')
       return false
     }
   }
@@ -141,7 +165,7 @@ export class WakeRecorder {
     try {
       await this.recorder.start()
     } catch {
-      this.options.onError?.('mic-denied')
+      this.options.onError?.('micDenied')
       this.setState('idle')
     }
   }
@@ -149,7 +173,7 @@ export class WakeRecorder {
   private onProgress(duration: number, vol: number): void {
     if (this.disposed || this.state === 'idle' || this.state === 'converting') return
     if (duration > MAX_DURATION) {
-      this.options.onError?.('too-long')
+      this.options.onError?.('tooLong')
       void this.stop()
       return
     }
@@ -170,6 +194,7 @@ export class WakeRecorder {
   private async stopAndRecognize(): Promise<void> {
     const recorder = this.recorder
     if (!recorder || this.disposed) return
+    this.options.onRoundStart?.()
     try {
       recorder.stop()
     } catch { /* already stopped */ }
@@ -180,13 +205,25 @@ export class WakeRecorder {
       await this.afterRound()
       return
     }
-    this.setState('converting')
+    // Manual mode shows a converting state; wake mode stays in the listening
+    // state while recognizing so the UI does not flash a "converting" popup
+    // for every non-wake round. Only a wake-word hit transitions to
+    // command-listening (which shows the UI).
+    if (this.mode === 'manual') this.setState('converting')
     const text = await this.recognize(wav)
     if (this.disposed) return
 
     if (this.mode === 'manual') {
       // Manual mode: any recognized text is the command.
       if (text !== '') this.options.onCommand?.(text)
+      if (this.returnToWake) {
+        // Background wake listening stays on: re-enter the loop.
+        this.returnToWake = false
+        this.mode = 'wake'
+        this.setState('wake-listening')
+        await this.afterRound()
+        return
+      }
       this.setState('idle')
       await this.cleanup()
       return
@@ -217,16 +254,23 @@ export class WakeRecorder {
   private async afterRound(): Promise<void> {
     if (this.disposed) return
     if (this.mode === 'manual') {
+      if (this.returnToWake) {
+        // Background wake listening stays on: re-enter the loop.
+        this.returnToWake = false
+        this.mode = 'wake'
+        this.setState('wake-listening')
+        await this.cleanup()
+        this.createRecorder()
+        await this.startRecording()
+        return
+      }
       this.setState('idle')
       await this.cleanup()
       return
     }
-    // Wake mode: restart recording for the next round.
-    if (this.state === 'converting') {
-      this.setState(this.awake ? 'command-listening' : 'wake-listening')
-    }
-    // js-audio-recorder cannot restart after stop on the same instance in all
-    // browsers; create a fresh one for the next round.
+    // Wake mode: restart recording for the next round. The state was already
+    // set by stopAndRecognize (command-listening on wake hit, wake-listening
+    // otherwise); just start a fresh recorder.
     await this.cleanup()
     this.createRecorder()
     await this.startRecording()
@@ -250,13 +294,13 @@ export class WakeRecorder {
       formData.append('lang', 'zh')
       const res = await fetch(this.options.asrPath, { method: 'POST', body: formData })
       if (!res.ok) {
-        this.options.onError?.('asr-failed')
+        this.options.onError?.('asrFailed')
         return ''
       }
       const data = await res.json() as { text?: string }
       return data.text ?? ''
     } catch {
-      this.options.onError?.('asr-failed')
+      this.options.onError?.('asrFailed')
       return ''
     }
   }

@@ -12,7 +12,17 @@ import css from './VoiceOverlay.module.css'
 export function VoiceOverlay({ controller, t }: VoiceOverlayProps) {
   const view = useSyncExternalStore(controller.subscribe, controller.getSnapshot)
 
-  if (view.state === 'idle') return null
+  const quiet = view.state === 'idle' || view.state === 'wake-listening'
+  if (quiet && view.error === null) return null
+  if (quiet && view.error !== null) {
+    return (
+      <div className={css.overlay}>
+        <div className={css.panel}>
+          <div className={css.errorText}>{t(`error.${view.error}` as never)}</div>
+        </div>
+      </div>
+    )
+  }
 
   const statusText = view.state === 'converting'
     ? t('overlay.converting')
@@ -41,9 +51,6 @@ export function VoiceOverlay({ controller, t }: VoiceOverlayProps) {
             </div>
             <div className={css.textColumn}>
               <span className={css.statusText}>{statusText}</span>
-              {view.state === 'wake-listening' && (
-                <span className={css.hintText}>{t('overlay.wakeHint')}</span>
-              )}
             </div>
           </div>
         )}

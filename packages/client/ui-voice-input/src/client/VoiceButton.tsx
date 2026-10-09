@@ -1,19 +1,22 @@
 /**
- * The microphone button in the composer tool row: click for single-shot
- * recording, right-click (or long-press) for the wake-word listening loop.
+ * The microphone button in the composer tool row. Wake-word listening runs in
+ * the background (started by the plugin while enabled); clicking the button
+ * starts a manual recording round on top of it, clicking again stops.
  * Binds the session's input actions into the controller on mount so a
  * recognized command lands in the draft.
  * @module @deepseek-ai/dsh-client-ui-voice-input/client/VoiceButton
  */
 
 import { useEffect, useRef, useSyncExternalStore } from 'react'
-import { IconMicrophoneOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconMicrophoneOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { VoiceButtonProps } from './slots.ts'
 import css from './VoiceButton.module.css'
 
 export function VoiceButton({ controller, useInput, inputActions, t }: VoiceButtonProps) {
   const view = useSyncExternalStore(controller.subscribe, controller.getSnapshot)
-  const active = view.state !== 'idle'
+  // wake-listening is background silence: the button stays in its idle look
+  // and a click starts a manual round on top of the loop.
+  const active = view.state === 'recording' || view.state === 'command-listening' || view.state === 'converting'
   // Track the live draft so the controller can append recognized text.
   const draft = useInput(s => s.draft)
   const draftRef = useRef(draft)
@@ -34,30 +37,19 @@ export function VoiceButton({ controller, useInput, inputActions, t }: VoiceButt
     }
   }
 
-  const handleContextMenu = (e: React.MouseEvent): void => {
-    e.preventDefault()
-    if (active) {
-      void controller.stop()
-    } else {
-      void controller.startWake()
-    }
-  }
-
-  const tooltip = active
-    ? t('button.stop')
-    : `${t('button.start')} / ${t('button.wake')}`
+  const label = view.error !== null
+    ? t(`error.${view.error}` as never)
+    : active ? t('button.stop') : t('button.start')
 
   return (
-    <Tooltip label={tooltip} side="top" delayMs={500}>
-      <button
-        type="button"
-        className={active ? `${css.button} ${css.active}` : css.button}
-        aria-label={tooltip}
-        onClick={handleClick}
-        onContextMenu={handleContextMenu}
-      >
-        <IconMicrophoneOutline16 size={16} />
-      </button>
-    </Tooltip>
+    <button
+      type="button"
+      className={active ? `${css.button} ${css.active}` : css.button}
+      aria-label={label}
+      title={label}
+      onClick={handleClick}
+    >
+      <IconMicrophoneOutline16 size={16} />
+    </button>
   )
 }

@@ -9,11 +9,16 @@ export async function fetchSkills(): Promise<SkillInfo[]> {
 }
 
 export async function importSkill(file: File): Promise<ImportResult> {
-  const form = new FormData()
-  form.set('file', file)
+  // Send the ZIP as a raw binary body instead of multipart/form-data. The
+  // server's hand-rolled multipart parser (skill-import extractZipBuffer)
+  // truncates the payload if the ZIP bytes happen to contain the boundary
+  // string, corrupting the archive ("No END header found"). A raw body
+  // sidesteps multipart parsing entirely — the server passes it through
+  // unchanged when Content-Type is not multipart/form-data.
   const res = await fetch(`${API_BASE}/skills/import`, {
     method: 'POST',
-    body: form,
+    headers: { 'Content-Type': 'application/zip' },
+    body: file,
   })
   if (!res.ok) throw new Error(`Failed to import skill: ${res.statusText}`)
   return res.json()

@@ -157,11 +157,18 @@ export function apply(ctx: Context, config: Config = DEFAULT_CONFIG): void {
 
         try {
           for (const entry of zipEntries) {
+            // ZIP entry names use '/' per spec, but archives produced on
+            // Windows tools may carry '\' separators. On Linux '\' is a
+            // valid filename character, not a separator, so joining it
+            // verbatim would create flat files with literal backslashes in
+            // their names instead of a directory tree — and findSkillRoots
+            // would then find no SKILL.md. Normalize to '/' first.
+            const entryName = entry.entryName.replace(/\\/g, '/')
             // Security: reject path traversal
-            if (entry.entryName.includes('..')) {
-              throw new Error(`Unsafe path in ZIP: ${entry.entryName}`)
+            if (entryName.includes('..')) {
+              throw new Error(`Unsafe path in ZIP: ${entryName}`)
             }
-            const targetPath = join(tmpDir, entry.entryName)
+            const targetPath = join(tmpDir, entryName)
             if (entry.isDirectory) {
               await mkdir(targetPath, { recursive: true })
             } else {

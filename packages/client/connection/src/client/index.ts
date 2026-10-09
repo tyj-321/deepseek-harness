@@ -78,6 +78,41 @@ interface ClientTransportGlobal {
 }
 
 /**
+ * Page global carrying the deployment's trusted authorities, injected by the
+ * host (`web-app`) as `__DSH_TRUSTED_HOSTS__`. Lets the `isLoopback` gate treat
+ * a deployment-trusted authority (e.g. a LAN IP the operator passed via
+ * `--trusted-host`) as trusted for settings persistence — mirroring the trust
+ * the `/api` Host fence already grants the same authority. Absent means the
+ * default loopback-only behavior.
+ */
+interface TrustedHostsGlobal {
+  __DSH_TRUSTED_HOSTS__?: unknown
+}
+
+/**
+ * Read the injected trusted-hostname list, normalized to bare hostnames. Only
+ * string arrays are honored; anything else (absent, wrong shape) yields an
+ * empty list so a malformed injection never widens trust. Entries may carry a
+ * port (`host:port`); only the hostname part is compared, since the page's
+ * `location.hostname` never carries one.
+ */
+function readTrustedHostnames(): readonly string[] {
+  const value = (globalThis as TrustedHostsGlobal).__DSH_TRUSTED_HOSTS__
+  if (!Array.isArray(value)) return []
+  return value
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => {
+      // Strip a trailing :port (and IPv6 brackets) so `10.0.0.7:3080` and
+      // `10.0.0.7` both reduce to the bare hostname the page exposes.
+      try {
+        return new URL(`http://${entry}`).hostname
+      } catch {
+        return entry
+      }
+    })
+}
+
+/**
  * The ctx.connection service API: the API client plus a one-shot
  * controller starter (the runtime plugin supplies sinks when its object layer
  * is ready — connection stays consumer-agnostic).
@@ -129,7 +164,9 @@ export function apply(ctx: Context): void {
   }
   const handle: ConnectionHandle = {
     api,
-    isLoopback: pageLocation === undefined || isLoopbackHostname(pageLocation.hostname),
+    isLoopback: pageLocation === undefined
+      || isLoopbackHostname(pageLocation.hostname)
+      || readTrustedHostnames().includes(pageLocation.hostname),
     hostDescription: {
       getSnapshot: () => description,
       subscribe: (listener) => {

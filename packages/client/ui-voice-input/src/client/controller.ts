@@ -52,16 +52,30 @@ export class VoiceController {
 
   /** Start a single-shot manual recording (click-to-talk). */
   async startManual(): Promise<void> {
-    if (this.recorder) return
-    this.recorder = this.createRecorder()
-    await this.recorder.startManual()
+    this.clearError()
+    if (this.recorder !== null && this.recorder.currentState !== 'idle') {
+      // Wake loop already running: switch it to a manual round so the click
+      // starts recording immediately instead of being rejected.
+      this.recorder.switchToManual()
+      return
+    }
+    const recorder = this.createRecorder()
+    this.recorder = recorder
+    await recorder.startManual()
+    this.releaseIfIdle(recorder)
   }
 
-  /** Start the wake-listening loop. */
-  async startWake(): Promise<void> {
-    if (this.recorder) return
-    this.recorder = this.createRecorder()
-    await this.recorder.startWake()
+  /**
+   * Ensure the background wake-listening loop is running. Idempotent: a
+   * no-op when any recorder is already active.
+   */
+  async ensureWakeListening(): Promise<void> {
+    if (this.recorder !== null && this.recorder.currentState !== 'idle') return
+    this.clearError()
+    const recorder = this.createRecorder()
+    this.recorder = recorder
+    await recorder.startWake()
+    this.releaseIfIdle(recorder)
   }
 
   /** Stop the loop and release the microphone. */
@@ -94,7 +108,9 @@ export class VoiceController {
       wakeWords: this.options.wakeWords,
       asrPath: this.options.asrPath,
       onStateChange: (state) => {
-        this.view = { state, error: null }
+        // Keep a permission or ASR error across the return to idle so the
+        // overlay can show it. The next start clears it.
+        this.view = { state, error: this.view.error }
         this.emit()
         // When the recorder finishes a manual round and returns to idle,
         // clear the reference so the next click creates a fresh instance.
@@ -109,11 +125,25 @@ export class VoiceController {
           actions.setDraft(draft + text)
         }
       },
+      onRoundStart: () => { this.clearError() },
       onError: (key) => {
         this.view = { ...this.view, error: key }
         this.emit()
       },
     })
+  }
+
+  /** Drop a recorder that never left idle, so a later click can retry. */
+  private releaseIfIdle(recorder: WakeRecorder): void {
+    if (this.recorder === recorder && recorder.currentState === 'idle') {
+      this.recorder = null
+    }
+  }
+
+  private clearError(): void {
+    if (this.view.error === null) return
+    this.view = { ...this.view, error: null }
+    this.emit()
   }
 
   private emit(): void {
