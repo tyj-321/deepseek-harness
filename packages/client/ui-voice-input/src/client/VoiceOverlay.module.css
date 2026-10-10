@@ -16,7 +16,11 @@
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background: var(--dsw-alias-bg-primary, #fff);
+  /* Floating surface token: white in light mode, the raised dark layer in dark
+     mode, so the label-token text above stays readable in both. There is no
+     --dsw-alias-bg-primary in the token sheet — referencing it pinned the
+     panel to the #fff fallback and turned dark-mode text light-on-white. */
+  background: var(--dsw-specific-menu, #fff);
   border: 1px solid var(--dsw-alias-border-l2-darkmode-thin, rgba(0, 0, 0, 0.08));
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
@@ -109,7 +113,9 @@
 
 .errorText {
   font-size: 12px;
-  color: #f04438;
+  /* State token: red-600 on the light surface, the brighter red-400 in dark
+     mode, keeping the error legible on the dark floating panel. */
+  color: var(--dsw-alias-state-error-primary, #f04438);
   white-space: nowrap;
 }
 

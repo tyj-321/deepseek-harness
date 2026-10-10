@@ -46,30 +46,3 @@
   accent-color: #2250f2;
   cursor: pointer;
 }
-
-.wakeDisplay {
-  padding: 4px 10px;
-  border: 1px solid var(--dsw-alias-border-l2-darkmode-thin, rgba(0, 0, 0, 0.12));
-  border-radius: 6px;
-  background: transparent;
-  font-size: 12px;
-  color: var(--dsw-alias-label-secondary, #666);
-  cursor: pointer;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wakeDisplay:hover {
-  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.04));
-}
-
-.wakeInput {
-  padding: 4px 10px;
-  border: 1px solid #2250f2;
-  border-radius: 6px;
-  font-size: 12px;
-  outline: none;
-  max-width: 200px;
-}

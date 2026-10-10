@@ -16,13 +16,13 @@ export interface Config {
 }
 
 export const Config: z<Config> = z.object({
-  asrUrl: z.string().default('http://10.19.224.185:50000/api/v1/asr'),
+  asrUrl: z.string().default('http://10.19.125.21:50000/api/v1/asr'),
   maxBytes: z.natural().default(25 * 1024 * 1024),
   timeoutMs: z.natural().default(30_000),
 })
 
 const DEFAULT_CONFIG: Required<Config> = {
-  asrUrl: 'http://10.19.224.185:50000/api/v1/asr',
+  asrUrl: 'http://10.19.125.21:50000/api/v1/asr',
   maxBytes: 25 * 1024 * 1024,
   timeoutMs: 30_000,
 }

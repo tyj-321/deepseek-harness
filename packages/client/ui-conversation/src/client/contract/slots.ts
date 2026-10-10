@@ -424,6 +424,8 @@ export interface ChatNodeOwnerProps {
   /**
    * Open an http(s) link in the embedded browser panel (the ui-browser-panel
    * service); falls back to the system browser when the panel is absent.
+   * AssistantMarkdown also invokes this when a live assistant reply yields a
+   * newly completed http(s) URL, navigating to the latest such URL.
    */
   openUrl: (url: string) => void
   /** Render a historical image group through the attachment slot. */
@@ -767,7 +769,8 @@ export interface ChatViewInjected {
   /**
    * Open an http(s) link in the embedded browser panel when the
    * ui-browser-panel plugin is composed in; falls back to the system browser
-   * otherwise.
+   * otherwise. Clicked markdown links and complete http(s) URLs in a live
+   * assistant reply both go through this callback.
    */
   openUrl: (url: string) => void
   loadOlder: () => void

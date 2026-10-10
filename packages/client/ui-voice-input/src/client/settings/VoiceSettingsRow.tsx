@@ -1,9 +1,9 @@
 /**
- * General Settings row for voice input: enable toggle + wake words editor.
+ * General Settings row for voice input: the enable toggle only. The wake
+ * words are a fixed product default, not user-editable.
  * @module @deepseek-ai/dsh-client-ui-voice-input/client/settings/VoiceSettingsRow
  */
 
-import { useState } from 'react'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { VoiceKey } from '../locales.ts'
@@ -28,8 +28,6 @@ export type VoiceSettingsRowProps =
 
 export function VoiceSettingsRow({ useVoice, setField, t }: VoiceSettingsRowProps) {
   const settings = useVoice(value => value)
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(settings.wakeWords)
 
   return (
     <div className={css.row}>
@@ -46,25 +44,6 @@ export function VoiceSettingsRow({ useVoice, setField, t }: VoiceSettingsRowProp
           />
           <span>{t('settings.enabled')}</span>
         </label>
-        {editing ? (
-          <input
-            className={css.wakeInput}
-            value={draft}
-            onChange={(e) => { setDraft(e.target.value) }}
-            onBlur={() => { setField('wakeWords', draft); setEditing(false) }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { setField('wakeWords', draft); setEditing(false) } }}
-            autoFocus
-          />
-        ) : (
-          <button
-            type="button"
-            className={css.wakeDisplay}
-            onClick={() => { setDraft(settings.wakeWords); setEditing(true) }}
-            title={t('settings.wakeWords')}
-          >
-            {settings.wakeWords}
-          </button>
-        )}
       </div>
     </div>
   )

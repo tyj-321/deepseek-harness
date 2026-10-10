@@ -70,6 +70,17 @@
   border-bottom: 2px solid rgb(255 255 255 / 0);
   margin-left: -3px;
   margin-right: -3px;
+  /* Long URLs stay on one line: the container's overflow-wrap: anywhere
+     would otherwise wrap a bare autolink across many lines. inline-block
+     lets text-overflow reach the link, max-width: 100% keeps it inside the
+     message column, and the browser's hover tooltip already shows the full
+     href so the truncation is non-destructive. */
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .markdown a:hover,
@@ -177,24 +188,20 @@
   overscroll-behavior-x: contain;
 }
 
-/* Wide tables reveal their horizontal bar on hover (or keyboard focus)
-   instead of keeping it painted. Chromium never repaints state-conditioned
-   scrollbar STYLES (neither hover-conditioned `::-webkit-scrollbar*` rules
-   nor a :hover `scrollbar-color` change reaches the painted bar), so the
-   toggle is `overflow-x` itself — a layout change repaints reliably. The
-   resting padding matches the themed bar's height, so on an overflowing
-   table the appearing bar exactly replaces it and nothing below shifts.
-   Wheel and trackpad scrolling need the pointer over the table, which is
-   already the hover that re-enables `auto`. */
+/* Wide tables rest with `overflow-x: auto` and paint the horizontal bar
+   whenever the table overflows. A hover reveal cannot stay layout-neutral:
+   classic bars are thicker than any compensating rest padding (so an
+   overflowing table pushed the flow on every hover), and a table that fits
+   shows no bar at all, so a padding swap alone shifted everything below and
+   trapped the pointer in a hover/unhover oscillation at the wrapper's
+   bottom edge. Chromium never repaints state-conditioned scrollbar STYLES
+   (neither hover-conditioned `::-webkit-scrollbar*` rules nor a :hover
+   `scrollbar-color` change reaches the painted bar), leaving no pure-CSS
+   reveal that keeps the flow still. `scrollbar-gutter: stable` lets engines
+   that honor it keep fitting tables on the same footprint. */
 .tableScroll:global(.md-table-wide) {
-  overflow-x: hidden;
-  padding-bottom: var(--dsh-scrollbar-width, 8px);
-}
-
-.tableScroll:global(.md-table-wide):hover,
-.tableScroll:global(.md-table-wide):focus-visible {
   overflow-x: auto;
-  padding-bottom: 0;
+  scrollbar-gutter: stable;
 }
 
 /* Chromium keyboard-focuses scrollable containers by default; the ring uses

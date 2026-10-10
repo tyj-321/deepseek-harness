@@ -783,6 +783,25 @@ describe('ChatView', () => {
     expect(h.forkAt).not.toHaveBeenCalled()
   })
 
+  it('auto-opens a complete http(s) URL from a live assistant reply, not from history', () => {
+    const h = makeHarness({
+      nodes: [user(1, 'open it'), assistant(2, 'see https://old.example/history')],
+    })
+    render(<h.ChatView {...h.props} />)
+    expect(h.props.openUrl).not.toHaveBeenCalled()
+    act(() => {
+      h.set({ partial: { turn: 2, step: 1, blocks: [{ kind: 'text', text: 'open https://live.example/app' }] } })
+    })
+    expect(h.props.openUrl).not.toHaveBeenCalled()
+    act(() => {
+      h.set({
+        partial: { turn: 2, step: 1, blocks: [{ kind: 'text', text: 'open https://live.example/app now' }] },
+      })
+    })
+    expect(h.props.openUrl).toHaveBeenCalledTimes(1)
+    expect(h.props.openUrl).toHaveBeenCalledWith('https://live.example/app')
+  })
+
   it('renders assistant Markdown across history, streaming, final, and interrupted states while user text stays literal', () => {
     const markdown = '# Rendered\n\n- **one**\n- `two`'
     const h = makeHarness({ nodes: [user(1, markdown), assistant(2, markdown)] })

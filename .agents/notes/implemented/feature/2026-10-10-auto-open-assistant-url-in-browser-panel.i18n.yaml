@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-10-10-auto-open-assistant-url-in-browser-panel.md
+2026-10-10-auto-open-assistant-url-in-browser-panel.md: 5620fe4bdd49cf591b6a1d73dfd8a838fe7ed4f0
+2026-10-10-auto-open-assistant-url-in-browser-panel.zh.md: bf9f82582cea6616740b82555028a3e44beea05e

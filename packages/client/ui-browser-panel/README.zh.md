@@ -6,7 +6,7 @@
 
 在 Electron 桌面壳中，页面渲染在主进程的 `WebContentsView` 里——一个覆盖在面板主体区域上的顶层 WebContents，因此目标站点的 `frame-ancestors` CSP 对它不适用，禁止被 iframe 嵌入的内网平台也能加载。组件测量主体占位区域的矩形并通过 preload 桥上报，主进程据此摆放该视图。来宾页面的 `new-window` 事件会被拦截并改为在面板内导航，而不是弹出新窗口；关闭面板只是隐藏视图而不销毁 WebContents，cookie 与登录态跨开关保留。在纯 Web 部署中，面板降级为带沙箱的 `<iframe>`，当网站拒绝嵌入时提供外部浏览器打开的入口。头部包含地址栏（回车导航，裸域名自动补 `https://`）、刷新、外部打开按钮（存在桌面 preload 桥时走桥接）和关闭按钮。
 
-`browserPanel` 服务（`ctx.browserPanel`）是跨插件门面：发布可观察的 `{ open, url }` 快照以及 `open(url)` / `close()` 操作，并通过 `ctx.layout`（`openBrowser` / `closeBrowser`）驱动列的开关。[ui-conversation](../ui-conversation/README.zh.md) 通过 `ctx.get` 读取它——遵循客户端 bundle 纯净门禁，绝不做值导入——并把聊天 Markdown 与 web 工具卡片中的所有 http(s) 链接路由到它；未组合该插件时回退到系统浏览器。
+`browserPanel` 服务（`ctx.browserPanel`）是跨插件门面：发布可观察的 `{ open, url }` 快照以及 `open(url)` / `close()` 操作，并通过 `ctx.layout`（`openBrowser` / `closeBrowser`）驱动列的开关。[ui-conversation](../ui-conversation/README.zh.md) 通过 `ctx.get` 读取它——遵循客户端 bundle 纯净门禁，绝不做值导入——并把聊天 Markdown 与 web 工具卡片中的所有 http(s) 链接路由到它；未组合该插件时回退到系统浏览器。正在生成的助手回复里一旦出现完整的 http(s) URL，也会无需点击就在面板中打开该地址；历史消息以及仍在流式尾部增长的 URL 不会自动打开。
 
 `/client` 导出为插件主体（`apply`/`inject`）、服务门面（`IBrowserPanel`、`BrowserPanelController`）与语言键类型；面板与触发按钮组件保持在槽位注册之后，为包内私有。
 

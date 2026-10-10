@@ -2,7 +2,7 @@
 // Branch tails the acceptance specs do not reach: the node-half apply
 // without a settings service and AssistantMarkdown reasoning/unknown block arms.
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { cleanup, render } from '@testing-library/react'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
@@ -66,6 +66,83 @@ describe('tails', () => {
       <AssistantMarkdown t={t} blocks={[]} streaming={false} renderMessageImages={renderMessageImages} />,
     )
     expect(blank.container.firstChild).toBeNull()
+  })
+
+  it('auto-opens complete http(s) URLs only for a live assistant reply', () => {
+    const openUrl = vi.fn<(url: string) => void>()
+    render(
+      <AssistantMarkdown
+        t={t}
+        blocks={[{ kind: 'text', text: 'history https://old.example/app' }]}
+        streaming={false}
+        renderMessageImages={renderMessageImages}
+        openUrl={openUrl}
+      />,
+    )
+    expect(openUrl).not.toHaveBeenCalled()
+
+    const live = render(
+      <AssistantMarkdown
+        t={t}
+        blocks={[{ kind: 'text', text: 'open https://live.example/pa' }]}
+        streaming
+        renderMessageImages={renderMessageImages}
+        openUrl={openUrl}
+      />,
+    )
+    expect(openUrl).not.toHaveBeenCalled()
+    live.rerender(
+      <AssistantMarkdown
+        t={t}
+        blocks={[{ kind: 'text', text: 'open https://live.example/page now' }]}
+        streaming
+        renderMessageImages={renderMessageImages}
+        openUrl={openUrl}
+      />,
+    )
+    expect(openUrl).toHaveBeenCalledTimes(1)
+    expect(openUrl).toHaveBeenCalledWith('https://live.example/page')
+    live.rerender(
+      <AssistantMarkdown
+        t={t}
+        blocks={[{ kind: 'text', text: 'open https://live.example/page now' }]}
+        streaming={false}
+        renderMessageImages={renderMessageImages}
+        openUrl={openUrl}
+      />,
+    )
+    expect(openUrl).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens a tail URL when the live stream settles and ignores reasoning URLs', () => {
+    const openUrl = vi.fn<(url: string) => void>()
+    const view = render(
+      <AssistantMarkdown
+        t={t}
+        blocks={[
+          { kind: 'reasoning', text: 'maybe https://think.example' },
+          { kind: 'text', text: 'https://done.example/home' },
+        ]}
+        streaming
+        renderMessageImages={renderMessageImages}
+        openUrl={openUrl}
+      />,
+    )
+    expect(openUrl).not.toHaveBeenCalled()
+    view.rerender(
+      <AssistantMarkdown
+        t={t}
+        blocks={[
+          { kind: 'reasoning', text: 'maybe https://think.example' },
+          { kind: 'text', text: 'https://done.example/home' },
+        ]}
+        streaming={false}
+        renderMessageImages={renderMessageImages}
+        openUrl={openUrl}
+      />,
+    )
+    expect(openUrl).toHaveBeenCalledTimes(1)
+    expect(openUrl).toHaveBeenCalledWith('https://done.example/home')
   })
 
 })

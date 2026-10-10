@@ -9,12 +9,13 @@
 // their branch action is enabled only when the node is also the completed
 // turn's transcript tail. Think / tool-head-only nodes stay chrome-free.
 
-import { Fragment, memo, useMemo } from 'react'
+import { Fragment, memo, useEffect, useMemo, useRef } from 'react'
 import type { ReactNode } from 'react'
 import type { AssistantBlock } from '@deepseek-ai/dsh-client-runtime/client'
 import { JsonBlock, MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MarkdownFileMentions } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatViewSlotProps } from '../contract/slots.ts'
+import { latestCompleteHttpUrl } from './auto-open-url.ts'
 import { ReasoningRow } from './ReasoningRow.tsx'
 import css from './AssistantMarkdown.module.css'
 
@@ -27,7 +28,10 @@ export interface AssistantMarkdownProps {
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
   /** Resolved prose file mentions for this Assistant's closing turn. */
   mentions?: MarkdownFileMentions | undefined
-  /** Route external link clicks to the embedded browser panel. */
+  /**
+   * Route external link clicks — and auto-open complete http(s) URLs in a
+   * live assistant reply — to the embedded browser panel.
+   */
   openUrl?: ChatNodeOwnerProps['openUrl'] | undefined
   /** The owning view's locale seat, passed down as a plain prop. */
   t: ChatViewSlotProps['t']
@@ -40,6 +44,19 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
   // Stable per locale revision (t identity changes on switch): a fresh object
   // per render would rebuild MarkdownText's component table every chunk.
   const codeLabels = useMemo(() => ({ copyLabel: t('copy'), copiedLabel: t('copied') }), [t])
+  const liveRef = useRef(false)
+  const openedRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (streaming) liveRef.current = true
+    if (openUrl === undefined || !liveRef.current) return
+    const text = blocks
+      .flatMap(block => block.kind === 'text' ? [block.text] : [])
+      .join('\n')
+    const url = latestCompleteHttpUrl(text, streaming)
+    if (url === undefined || url === openedRef.current) return
+    openedRef.current = url
+    openUrl(url)
+  }, [blocks, streaming, openUrl])
   const last = blocks.length - 1
   // Tool-call heads render as tool rows in the chat view's grouping pass, so
   // a node that is only those heads (or empty) would paint an empty root
