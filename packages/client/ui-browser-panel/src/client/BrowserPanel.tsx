@@ -4,11 +4,15 @@
  * while closed (the guest page survives a close), so the component renders
  * null while the service says closed and lets the grid track do the hiding.
  *
- * Rendering: in the Electron desktop shell a `<webview>` carries the page
- * (webviewTag is enabled in main.ts; it is a full Chromium guest, so sites
- * that forbid iframing still load). Elsewhere — the plain web deployment —
- * the panel falls back to a sandboxed `<iframe>` and surfaces the load-failure
- * affordance when a site refuses embedding.
+ * Rendering: in the Electron desktop shell the guest page lives in a
+ * main-process `WebContentsView` overlaid on the panel body — a top-level
+ * WebContents, so the target site's `frame-ancestors` CSP does not apply and
+ * intranet platforms that forbid framing still load. The component measures
+ * the body placeholder's rect (ResizeObserver + rAF throttle, the AppFrame
+ * pattern) and reports it through the preload bridge; main positions the
+ * view. Elsewhere — the plain web deployment — the panel falls back to a
+ * sandboxed `<iframe>` and surfaces the load-failure affordance when a site
+ * refuses embedding.
  */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import type { KeyboardEvent } from 'react'
@@ -20,21 +24,36 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BrowserPanelController } from './service.ts'
 import css from './BrowserPanel.module.css'
 
+/** Viewport-relative rectangle reported to the main-process guest overlay. */
+interface EmbedRect {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+
+/** Guest lifecycle event pushed from main (address bar / loading state). */
+type EmbedStateEvent =
+  | { readonly type: 'loading' }
+  | { readonly type: 'navigated'; readonly url: string }
+  | { readonly type: 'failed' }
+
 /** The preload bridge the desktop shell installs (apps/desktop/src/preload.ts). */
 interface DesktopBridge {
   readonly isDesktop?: boolean
   openExternal(url: string): void
+  readonly embedBrowser?: {
+    open(url: string): void
+    navigate(url: string): void
+    reload(): void
+    hide(): void
+    setRect(rect: EmbedRect): void
+    onStateEvent(callback: (event: EmbedStateEvent) => void): () => void
+  }
 }
 
 function desktopBridge(): DesktopBridge | undefined {
   return (window as unknown as { dshDesktop?: DesktopBridge }).dshDesktop
-}
-
-/** The subset of Electron's WebviewTag the panel drives. */
-interface WebviewElement extends HTMLElement {
-  src: string
-  reload(): void
-  loadURL(url: string): Promise<void>
 }
 
 /** True when the value parses as an absolute http(s) URL. */
@@ -68,11 +87,11 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
     fn => panel.state.subscribe(fn),
     () => panel.state.getSnapshot(),
   )
-  const webviewRef = useRef<WebviewElement | null>(null)
+  const bodyRef = useRef<HTMLDivElement | null>(null)
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
   const [address, setAddress] = useState(state.url ?? '')
-  const desktop = useMemo(() => desktopBridge()?.isDesktop === true, [])
+  const embed = useMemo(() => desktopBridge()?.embedBrowser, [])
 
   // The address bar follows navigation that originates outside it (link clicks,
   // in-page redirects); edits stay local until Enter commits them.
@@ -80,49 +99,72 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
     if (state.url !== null) setAddress(state.url)
   }, [state.url])
 
-  // Attach the guest's lifecycle events. The webview element exists only in
-  // the desktop branch, so the effect keys off the rendered URL and the
-  // desktop flag; every attachment re-binds against the current element.
+  // Drive the main-process guest: open/navigate on URL change, hide on close.
+  // The effect lives here (not in the service) so the web deployment never
+  // touches the desktop bridge.
   useEffect(() => {
-    if (!desktop || !state.open || state.url === null) return
-    const view = webviewRef.current
-    if (view === null) return
-    setLoading(true)
-    setFailed(false)
-    const onStart = (): void => { setLoading(true); setFailed(false) }
-    const onStop = (): void => { setLoading(false) }
-    const onFail = (event: Event): void => {
-      // ERR_ABORTED (-3) fires for same-document navigation and user aborts.
-      const code = (event as { errorCode?: number }).errorCode
-      if (code === -3) return
-      setLoading(false)
-      setFailed(true)
+    if (embed === undefined) return
+    if (!state.open) {
+      embed.hide()
+      return
     }
-    const onNavigate = (event: Event): void => {
-      const url = (event as { url?: string }).url
-      if (typeof url === 'string') setAddress(url)
+    if (state.url !== null) {
+      const el = bodyRef.current
+      if (el !== null) {
+        const rect = el.getBoundingClientRect()
+        embed.setRect({ x: rect.x, y: rect.y, width: rect.width, height: rect.height })
+      }
+      setLoading(true)
+      setFailed(false)
+      embed.open(state.url)
     }
-    const onNewWindow = (event: Event): void => {
-      // Guest target=_blank: navigate the panel itself instead of letting
-      // Electron open a new BrowserWindow.
-      const url = (event as { url?: string }).url
-      if (typeof url === 'string' && isHttpUrl(url)) void view.loadURL(url)
+  }, [embed, state.open, state.url])
+
+  // Subscribe to guest lifecycle events (loading bar, address-bar follow,
+  // failure overlay). On failure the native view hides so the React failure
+  // overlay (beneath it in z-order) becomes visible and clickable.
+  useEffect(() => {
+    if (embed === undefined) return
+    return embed.onStateEvent((event) => {
+      if (event.type === 'loading') {
+        setLoading(true)
+        setFailed(false)
+      } else if (event.type === 'navigated') {
+        setLoading(false)
+        setAddress(event.url)
+      } else {
+        setLoading(false)
+        setFailed(true)
+        embed.hide()
+      }
+    })
+  }, [embed])
+
+  // Report the body placeholder's rect so main can position the guest view
+  // over it. rAF-throttled ResizeObserver, the AppFrame frame-width pattern.
+  useEffect(() => {
+    if (embed === undefined || !state.open) return
+    const el = bodyRef.current
+    /* v8 ignore next -- the ref is always attached by effect time: the body div renders whenever the panel is open. */
+    if (el === null) return
+    let raf: number | null = null
+    const report = (): void => {
+      const rect = el.getBoundingClientRect()
+      embed.setRect({ x: rect.x, y: rect.y, width: rect.width, height: rect.height })
     }
-    view.addEventListener('did-start-loading', onStart)
-    view.addEventListener('did-stop-loading', onStop)
-    view.addEventListener('did-fail-load', onFail)
-    view.addEventListener('did-navigate', onNavigate)
-    view.addEventListener('did-navigate-in-page', onNavigate)
-    view.addEventListener('new-window', onNewWindow)
+    const observer = new ResizeObserver(() => {
+      raf ??= requestAnimationFrame(() => {
+        raf = null
+        report()
+      })
+    })
+    observer.observe(el)
+    report()
     return () => {
-      view.removeEventListener('did-start-loading', onStart)
-      view.removeEventListener('did-stop-loading', onStop)
-      view.removeEventListener('did-fail-load', onFail)
-      view.removeEventListener('did-navigate', onNavigate)
-      view.removeEventListener('did-navigate-in-page', onNavigate)
-      view.removeEventListener('new-window', onNewWindow)
+      observer.disconnect()
+      if (raf !== null) cancelAnimationFrame(raf)
     }
-  }, [desktop, state.open, state.url])
+  }, [embed, state.open])
 
   if (!state.open) return null
 
@@ -132,6 +174,15 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
       setAddress(state.url ?? '')
       return
     }
+    // Same-URL commits after a failure must re-drive the guest: the service
+    // dedupes identical URLs (its state doesn't change), so the open effect
+    // wouldn't fire and the hidden view would stay hidden.
+    if (embed !== undefined && next === state.url) {
+      setFailed(false)
+      setLoading(true)
+      embed.open(next)
+      return
+    }
     panel.open(next)
   }
   const onAddressKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
@@ -139,8 +190,17 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
     if (event.key === 'Escape') setAddress(state.url ?? '')
   }
   const refresh = (): void => {
-    if (desktop) webviewRef.current?.reload()
-    else if (state.url !== null) panel.open(state.url)
+    if (embed !== undefined) {
+      // After a failure the view is hidden (the React overlay owns the
+      // surface); re-open to reveal it. Otherwise a plain reload suffices.
+      if (failed && state.url !== null) {
+        setFailed(false)
+        setLoading(true)
+        embed.open(state.url)
+      } else {
+        embed.reload()
+      }
+    } else if (state.url !== null) panel.open(state.url)
   }
   const openExternal = (): void => {
     if (state.url === null) return
@@ -184,12 +244,12 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
           </button>
         </Tooltip>
       </div>
-      <div className={clsx(css.body, loading && css.bodyLoading)}>
+      <div ref={bodyRef} className={clsx(css.body, loading && css.bodyLoading)}>
         {state.url === null ? (
           <div className={css.placeholder}>{t('panel.empty')}</div>
-        ) : desktop ? (
-          <webview ref={webviewRef} src={state.url} className={css.guest} />
-        ) : (
+        ) : embed === undefined ? (
+          // Web deployment: a sandboxed iframe is the only channel a plain
+          // browser has; sites that forbid framing hit the failure overlay.
           <iframe
             key={state.url}
             src={state.url}
@@ -198,7 +258,7 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
             title={t('panel.title')}
             onLoad={() => { setLoading(false) }}
           />
-        )}
+        ) : null}
         {failed && (
           <div className={css.failure}>
             <div className={css.failureTitle}>{t('panel.loadFailed')}</div>
