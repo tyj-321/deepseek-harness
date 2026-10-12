@@ -589,6 +589,21 @@ export const IconFullscreenOutline16 = ({ size = 16, className }: IconProps) => 
   </svg>
 )
 
+/** ic_ds_fullscreen_exit_outline_16: corner brackets with arrows pointing inward
+ * (exit fullscreen), the mirrored pair of IconFullscreenOutline16. */
+export const IconFullscreenExitOutline16 = ({ size = 16, className }: IconProps) => (
+  <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M3.66003 13.411L7.66296 9.40808L6.59167 8.33777L2.58875 12.3407V7.99988H1.19324V12.9452C1.19324 13.9734 2.02633 14.8065 3.05457 14.8065H7.99988V13.411H3.66003Z"
+      fill="currentColor"
+    />
+    <path
+      d="M12.3407 2.58875L8.33777 6.59167L9.40808 7.66296L13.411 3.66003V7.99988H14.8065V3.05457C14.8065 2.02633 13.9734 1.19324 12.9452 1.19324H7.99988V2.58875H12.3407Z"
+      fill="currentColor"
+    />
+  </svg>
+)
+
 /** ic_ds_code_outline_16 */
 export const IconCodeOutline16 = ({ size = 16, className }: IconProps) => (
   <svg width={size} height={size} className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

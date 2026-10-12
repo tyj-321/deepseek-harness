@@ -11,6 +11,20 @@
   background: var(--dsw-alias-bg-base);
 }
 
+/* Fullscreen: the panel escapes the layout column and covers the viewport
+   (below the native title-bar strip, which stays visible for window drag).
+   The desktop guest view is re-bound to the same rect by the main process. */
+.panelFullscreen {
+  position: fixed;
+  z-index: 1000;
+  top: var(--dsh-desktop-titlebar-height, 0px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+}
+
 /* Header: globe + address field + refresh / external / close actions. */
 .header {
   display: flex;
@@ -51,6 +65,7 @@
   place-items: center;
   width: 28px;
   height: 28px;
+  padding: 0;
   border: none;
   border-radius: 999px;
   background: transparent;
@@ -65,6 +80,12 @@
 .action:disabled {
   cursor: default;
   opacity: 0.5;
+}
+
+/* Icons render as blocks: an inline SVG sits on the text baseline, which
+   leaves a stray descent gap and makes same-size glyphs look mis-sized. */
+.actionIcon {
+  display: block;
 }
 
 .body {

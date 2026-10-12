@@ -18,7 +18,13 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import type { KeyboardEvent } from 'react'
 import clsx from 'clsx'
 import {
-  IconCloseOutline16, IconGlobeOutline14, IconRefreshOutline16, IconRightUpOutline16, Tooltip,
+  IconCloseOutline16,
+  IconFullscreenExitOutline16,
+  IconFullscreenOutline16,
+  IconGlobeOutline14,
+  IconRefreshOutline16,
+  IconRightUpOutline16,
+  Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import type { BrowserPanelController } from './service.ts'
@@ -48,6 +54,7 @@ interface DesktopBridge {
     reload(): void
     hide(): void
     setRect(rect: EmbedRect): void
+    setFullscreen(fullscreen: boolean): void
     onStateEvent(callback: (event: EmbedStateEvent) => void): () => void
   }
 }
@@ -90,6 +97,7 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
   const bodyRef = useRef<HTMLDivElement | null>(null)
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
   const [address, setAddress] = useState(state.url ?? '')
   const embed = useMemo(() => desktopBridge()?.embedBrowser, [])
 
@@ -142,8 +150,11 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
 
   // Report the body placeholder's rect so main can position the guest view
   // over it. rAF-throttled ResizeObserver, the AppFrame frame-width pattern.
+  // While fullscreen the main process owns the bounds (whole window), so the
+  // panel rect is not reported — reporting it would poison lastRect and the
+  // exit-fullscreen frame would flash the wrong geometry.
   useEffect(() => {
-    if (embed === undefined || !state.open) return
+    if (embed === undefined || !state.open || fullscreen) return
     const el = bodyRef.current
     /* v8 ignore next -- the ref is always attached by effect time: the body div renders whenever the panel is open. */
     if (el === null) return
@@ -164,7 +175,26 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
       observer.disconnect()
       if (raf !== null) cancelAnimationFrame(raf)
     }
-  }, [embed, state.open])
+  }, [embed, state.open, fullscreen])
+
+  // Fullscreen: the desktop guest is a main-process WebContentsView, so main
+  // must re-bound it over the whole window; the web iframe just restyles.
+  // Closing the panel always drops fullscreen first.
+  useEffect(() => {
+    if (!state.open && fullscreen) setFullscreen(false)
+  }, [state.open, fullscreen])
+  useEffect(() => {
+    if (embed === undefined) return
+    embed.setFullscreen(fullscreen)
+  }, [embed, fullscreen])
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = (event: globalThis.KeyboardEvent): void => {
+      if (event.key === 'Escape') setFullscreen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('keydown', onKey) }
+  }, [fullscreen])
 
   if (!state.open) return null
 
@@ -210,7 +240,7 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
   }
 
   return (
-    <div className={css.panel} data-browser-panel>
+    <div className={clsx(css.panel, fullscreen && css.panelFullscreen)} data-browser-panel>
       <div className={css.header}>
         <IconGlobeOutline14 size={14} className={css.headerIcon} />
         <input
@@ -224,7 +254,7 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
         />
         <Tooltip label={t('panel.refresh')} delayMs={500}>
           <button type="button" className={css.action} aria-label={t('panel.refresh')} onClick={refresh}>
-            <IconRefreshOutline16 size={14} />
+            <IconRefreshOutline16 size={14} className={css.actionIcon} />
           </button>
         </Tooltip>
         <Tooltip label={t('panel.openExternal')} delayMs={500}>
@@ -235,12 +265,29 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
             disabled={state.url === null}
             onClick={openExternal}
           >
-            <IconRightUpOutline16 size={14} />
+            {/* The right-up glyph is a full-bleed solid arrow (0–16 canvas);
+                rendered a step smaller so its visual weight matches the
+                stroked refresh/close/fullscreen glyphs. */}
+            <IconRightUpOutline16 size={12} className={css.actionIcon} />
+          </button>
+        </Tooltip>
+        <Tooltip label={fullscreen ? t('panel.exitFullscreen') : t('panel.fullscreen')} delayMs={500}>
+          <button
+            type="button"
+            className={css.action}
+            aria-label={fullscreen ? t('panel.exitFullscreen') : t('panel.fullscreen')}
+            aria-pressed={fullscreen}
+            disabled={state.url === null}
+            onClick={() => { setFullscreen(!fullscreen) }}
+          >
+            {fullscreen
+              ? <IconFullscreenExitOutline16 size={14} className={css.actionIcon} />
+              : <IconFullscreenOutline16 size={14} className={css.actionIcon} />}
           </button>
         </Tooltip>
         <Tooltip label={t('panel.close')} delayMs={500}>
           <button type="button" className={css.action} aria-label={t('panel.close')} onClick={() => { panel.close() }}>
-            <IconCloseOutline16 size={14} />
+            <IconCloseOutline16 size={14} className={css.actionIcon} />
           </button>
         </Tooltip>
       </div>
