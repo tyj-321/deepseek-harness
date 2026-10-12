@@ -15,8 +15,9 @@ import type { Win32DialogWorkerData } from './win32-dialog-worker.ts'
  * Spawn the dialog child process. Built consumers launch the bundled CJS
  * entry next to this module under plain node; unbuilt (source) consumers
  * bootstrap tsx first, mirroring the dsh CLI's source launch. The dialog is
- * the child's first window, so Windows activates it without a foreground
- * call.
+ * the child's first window — but Windows foreground-lock can still keep it
+ * behind an already-foreground window, so the driver additionally raises the
+ * dialog thread's windows from here once `showing` lands.
  * @param data - the child payload (dialog title).
  * @returns the spawned child process.
  */
@@ -30,4 +31,4 @@ export function spawnDialogWorker(data: Win32DialogWorkerData): ReturnType<typeo
   return spawn(process.execPath, ['--import', import.meta.resolve('tsx/esm'), fileURLToPath(new URL('./win32-dialog-worker.ts', import.meta.url))], { env, stdio, windowsHide: true })
 }
 
-export { closeThreadWindows } from './win32-dialog-bindings.ts'
+export { closeThreadWindows, raiseThreadWindows } from './win32-dialog-bindings.ts'

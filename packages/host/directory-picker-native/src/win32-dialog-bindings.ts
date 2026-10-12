@@ -53,6 +53,11 @@ const SIGDN_FILESYSPATH = 0x80058000 | 0
  */
 const DPI_AWARENESS_CONTEXTS = [-4, -3, -2]
 const WM_CLOSE = 0x10
+const SW_RESTORE = 9
+/** `HWND_TOPMOST` for `SetWindowPos`: park the window above every non-topmost window. */
+const HWND_TOPMOST = -1
+/** `SWP_NOMOVE | SWP_NOSIZE`: reorder only, keep the window's place and size. */
+const SWP_NOMOVE_NOSIZE = 0x1 | 0x2
 
 /** IFileOpenDialog vtable slots (IUnknown 0-2, IModalWindow 3, IFileDialog 4+). */
 const SLOT_RELEASE = 2
@@ -192,4 +197,44 @@ export async function closeThreadWindows(threadId: number): Promise<void> {
   } finally {
     koffi.unregister(callback)
   }
+}
+
+/**
+ * Raise every visible top-level window of a native thread to the top of the
+ * z-order and request the foreground — the driver's answer to the dialog
+ * opening BEHIND an already-foreground window (e.g. the Electron shell). The
+ * worker's "first window activates itself" assumption does not hold whenever
+ * Windows foreground-lock denies the activation, so the driver forces it from
+ * outside: `HWND_TOPMOST` guarantees visibility even though
+ * `SetForegroundWindow` from a process without foreground rights is refused.
+ * @param threadId - the dialog thread's native id (from the `showing` notice).
+ * @returns how many visible windows were raised; 0 means the dialog window
+ *   has not appeared yet and the caller should retry.
+ */
+export async function raiseThreadWindows(threadId: number): Promise<number> {
+  const koffi = (await import('koffi')).default as unknown as Koffi
+  const user32 = koffi.load('user32.dll')
+  const enumThreadWindows = user32.func('__stdcall', 'EnumThreadWindows', 'int', ['uint32', 'void *', 'intptr'])
+  const isWindowVisible = user32.func('__stdcall', 'IsWindowVisible', 'int', ['void *'])
+  const showWindow = user32.func('__stdcall', 'ShowWindow', 'int', ['void *', 'int'])
+  const setWindowPos = user32.func('__stdcall', 'SetWindowPos', 'int', ['void *', 'intptr', 'int', 'int', 'int', 'int', 'uint32'])
+  const setForegroundWindow = user32.func('__stdcall', 'SetForegroundWindow', 'int', ['void *'])
+  const protoEnumProc = koffi.proto('int __stdcall DshRaiseThreadWndProc(void *hwnd, intptr lparam)')
+  let raised = 0
+  const callback = koffi.register((hwnd: unknown) => {
+    if (isWindowVisible(hwnd) as number === 0) return 1
+    showWindow(hwnd, SW_RESTORE)
+    setWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE_NOSIZE)
+    // Best-effort last: refused without foreground rights, and the TOPMOST
+    // above is what actually guarantees the user sees the dialog.
+    setForegroundWindow(hwnd)
+    raised += 1
+    return 1
+  }, koffi.pointer(protoEnumProc))
+  try {
+    enumThreadWindows(threadId, callback, 0)
+  } finally {
+    koffi.unregister(callback)
+  }
+  return raised
 }

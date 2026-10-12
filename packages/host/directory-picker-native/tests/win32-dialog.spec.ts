@@ -22,18 +22,23 @@ interface Harness {
   worker: FakeWorker
   internals: Win32DialogInternals
   close: ReturnType<typeof vi.fn>
+  raise: ReturnType<typeof vi.fn>
 }
 
 function harness(overrides: Partial<Win32DialogInternals> = {}): Harness {
   const worker = new FakeWorker()
   const close = vi.fn(async () => undefined)
+  const raise = vi.fn(async () => 1)
   return {
     worker,
     close,
+    raise,
     internals: {
       spawnWorker: () => worker,
       closeThreadWindows: close,
+      raiseThreadWindows: raise,
       closeRetryMs: 1,
+      raiseRetryMs: 1,
       ...overrides,
     },
   }
@@ -143,6 +148,96 @@ describe('pickWin32Directory', () => {
     await expect(picked).rejects.toThrow('dialog unresponsive; worker killed')
     expect(worker.kill).toHaveBeenCalledOnce()
     expect(close.mock.calls.length).toBeGreaterThan(10)
+  })
+
+  it('raises the dialog thread windows on the showing notice, once the window is up', async () => {
+    const { worker, internals, raise } = harness()
+    const picked = pickWin32Directory(live(), internals)
+    worker.post({ kind: 'showing', threadId: 7 })
+    await vi.waitFor(() => {
+      expect(raise).toHaveBeenCalledWith(7)
+    })
+    // A raised window (count 1) stops the service: no further attempts tick.
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(raise).toHaveBeenCalledOnce()
+    worker.post({ kind: 'done', path: 'C:\\raised' })
+    await expect(picked).resolves.toBe('C:\\raised')
+  })
+
+  it('retries the raise until the dialog window exists', async () => {
+    const raise = vi.fn()
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0)
+      .mockResolvedValue(1)
+    const { worker, internals } = harness({ raiseThreadWindows: raise })
+    const picked = pickWin32Directory(live(), internals)
+    worker.post({ kind: 'showing', threadId: 21 })
+    await vi.waitFor(() => {
+      expect(raise.mock.calls.length).toBeGreaterThanOrEqual(3)
+    })
+    worker.post({ kind: 'done', path: null })
+    await expect(picked).resolves.toBeNull()
+  })
+
+  it('swallows a refused raise and lets the interval retry it', async () => {
+    const raise = vi.fn()
+      .mockRejectedValueOnce(new Error('EnumThreadWindows refused'))
+      .mockResolvedValue(1)
+    const { worker, internals } = harness({ raiseThreadWindows: raise })
+    const picked = pickWin32Directory(live(), internals)
+    worker.post({ kind: 'showing', threadId: 33 })
+    await vi.waitFor(() => {
+      expect(raise.mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+    worker.post({ kind: 'done', path: null })
+    await expect(picked).resolves.toBeNull()
+  })
+
+  it('accepts the default z-order once the raise budget runs out', async () => {
+    const raise = vi.fn(async () => 0)
+    const { worker, internals } = harness({ raiseThreadWindows: raise, raiseMaxAttempts: 3 })
+    const picked = pickWin32Directory(live(), internals)
+    worker.post({ kind: 'showing', threadId: 44 })
+    await vi.waitFor(() => {
+      expect(raise.mock.calls.length).toBeGreaterThanOrEqual(3)
+    })
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(raise).toHaveBeenCalledTimes(3)
+    worker.post({ kind: 'done', path: null })
+    await expect(picked).resolves.toBeNull()
+  })
+
+  it('never raises when the abort raced ahead of the showing notice', async () => {
+    const { worker, internals, raise, close } = harness()
+    const controller = new AbortController()
+    const picked = expect(pickWin32Directory(controller.signal, internals)).rejects.toThrow('native directory picker aborted')
+    controller.abort()
+    worker.post({ kind: 'showing', threadId: 55 })
+    await vi.waitFor(() => {
+      expect(close).toHaveBeenCalledWith(55)
+    })
+    expect(raise).not.toHaveBeenCalled()
+    worker.post({ kind: 'done', path: null })
+    await picked
+  })
+
+  it('stops a pending raise service when the abort service starts', async () => {
+    const raise = vi.fn(async () => 0)
+    const { worker, internals, close } = harness({ raiseThreadWindows: raise })
+    const controller = new AbortController()
+    const picked = expect(pickWin32Directory(controller.signal, internals)).rejects.toThrow('native directory picker aborted')
+    worker.post({ kind: 'showing', threadId: 66 })
+    await vi.waitFor(() => {
+      expect(raise.mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+    controller.abort()
+    const raiseCallsAtAbort = raise.mock.calls.length
+    await vi.waitFor(() => {
+      expect(close.mock.calls.length).toBeGreaterThan(2)
+    })
+    expect(raise.mock.calls.length).toBe(raiseCallsAtAbort)
+    worker.post({ kind: 'done', path: null })
+    await picked
   })
 
   // POSIX hosts exercise the REAL default plumbing end to end: the tsx-bootstrapped

@@ -30,6 +30,8 @@ interface ComWorld {
   /** Contexts `SetThreadDpiAwarenessContext` accepts; others return NULL. */
   supportedDpiContexts: number[]
   enumThrows: boolean
+  /** `IsWindowVisible` answers false for these hwnd numbers. */
+  invisible: number[]
   path: string
   titles: string[]
   options: number[]
@@ -37,6 +39,9 @@ interface ComWorld {
   freed: unknown[]
   released: string[]
   posted: { hwnd: unknown; message: number }[]
+  shown: unknown[]
+  topmosted: unknown[]
+  foregrounded: unknown[]
   registered: number
   unregistered: number
   uninitialized: number
@@ -46,8 +51,10 @@ function comWorld(overrides: Partial<ComWorld> = {}): ComWorld {
   return {
     coInitHr: 0, coCreateHr: 0, showHr: 0, getResultHr: 0, getDisplayNameHr: 0,
     hasThreadDpi: true, supportedDpiContexts: [-4], enumThrows: false,
+    invisible: [],
     path: 'C:\\选中\\directory',
     titles: [], options: [], dpiContexts: [], freed: [], released: [], posted: [],
+    shown: [], topmosted: [], foregrounded: [],
     registered: 0, unregistered: 0, uninitialized: 0,
     ...overrides,
   }
@@ -120,6 +127,10 @@ function installFakeKoffi(world: ComWorld): void {
               return 1
             }
             case 'PostMessageW': return (hwnd: unknown, message: number) => { world.posted.push({ hwnd, message }); return 1 }
+            case 'IsWindowVisible': return (hwnd: FakePtr) => (world.invisible.includes(hwnd.n as number) ? 0 : 1)
+            case 'ShowWindow': return (hwnd: unknown) => { world.shown.push(hwnd); return 1 }
+            case 'SetWindowPos': return (hwnd: unknown) => { world.topmosted.push(hwnd); return 1 }
+            case 'SetForegroundWindow': return (hwnd: unknown) => { world.foregrounded.push(hwnd); return 1 }
             default: throw new Error(`unexpected native import ${dll}/${name}`)
           }
         },
@@ -260,6 +271,44 @@ describe('closeThreadWindows over the fake COM world', () => {
     installFakeKoffi(world)
     const { closeThreadWindows } = await loadBindingsModule()
     await expect(closeThreadWindows(777)).rejects.toThrow('EnumThreadWindows refused')
+    expect(world.unregistered).toBe(1)
+  })
+})
+
+describe('raiseThreadWindows over the fake COM world', () => {
+  it('raises every visible window of the thread and reports the count', async () => {
+    const world = comWorld()
+    installFakeKoffi(world)
+    const { raiseThreadWindows } = await loadBindingsModule()
+    await expect(raiseThreadWindows(777)).resolves.toBe(2)
+    expect(world.shown).toEqual([{ kind: 'hwnd', n: 1 }, { kind: 'hwnd', n: 2 }])
+    expect(world.topmosted).toEqual([{ kind: 'hwnd', n: 1 }, { kind: 'hwnd', n: 2 }])
+    expect(world.foregrounded).toEqual([{ kind: 'hwnd', n: 1 }, { kind: 'hwnd', n: 2 }])
+    expect(world.registered).toBe(1)
+    expect(world.unregistered).toBe(1)
+  })
+
+  it('skips invisible windows (0 means the dialog has not appeared yet)', async () => {
+    const world = comWorld({ invisible: [2] })
+    installFakeKoffi(world)
+    const { raiseThreadWindows } = await loadBindingsModule()
+    await expect(raiseThreadWindows(777)).resolves.toBe(1)
+    expect(world.topmosted).toEqual([{ kind: 'hwnd', n: 1 }])
+
+    vi.doUnmock('koffi')
+    vi.resetModules()
+    const allHidden = comWorld({ invisible: [1, 2] })
+    installFakeKoffi(allHidden)
+    const { raiseThreadWindows: raiseAgain } = await loadBindingsModule()
+    await expect(raiseAgain(777)).resolves.toBe(0)
+    expect(allHidden.topmosted).toEqual([])
+  })
+
+  it('unregisters the callback even when the enumeration itself throws', async () => {
+    const world = comWorld({ enumThrows: true })
+    installFakeKoffi(world)
+    const { raiseThreadWindows } = await loadBindingsModule()
+    await expect(raiseThreadWindows(777)).rejects.toThrow('EnumThreadWindows refused')
     expect(world.unregistered).toBe(1)
   })
 })
