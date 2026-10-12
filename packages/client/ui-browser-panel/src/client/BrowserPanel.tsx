@@ -99,6 +99,11 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
   const [failed, setFailed] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [address, setAddress] = useState(state.url ?? '')
+  // Web-deployment reload token: the iframe remounts when this changes, so a
+  // same-URL refresh forces a fresh load even though the service dedupes the
+  // URL (its state would not change, so the key would stay the same). The
+  // desktop path reloads the native guest directly and never reads this.
+  const [reloadSeq, setReloadSeq] = useState(0)
   const embed = useMemo(() => desktopBridge()?.embedBrowser, [])
 
   // The address bar follows navigation that originates outside it (link clicks,
@@ -230,7 +235,15 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
       } else {
         embed.reload()
       }
-    } else if (state.url !== null) panel.open(state.url)
+    } else if (state.url !== null) {
+      // Web deployment: the service dedupes an identical URL (its state
+      // doesn't change), so re-open alone wouldn't remount the iframe.
+      // Bump the reload token to force a fresh mount — the web equivalent
+      // of reload().
+      setLoading(true)
+      setFailed(false)
+      setReloadSeq(n => n + 1)
+    }
   }
   const openExternal = (): void => {
     if (state.url === null) return
@@ -298,7 +311,7 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
           // Web deployment: a sandboxed iframe is the only channel a plain
           // browser has; sites that forbid framing hit the failure overlay.
           <iframe
-            key={state.url}
+            key={`${state.url}#${reloadSeq}`}
             src={state.url}
             className={css.guest}
             sandbox="allow-scripts allow-same-origin allow-forms"
