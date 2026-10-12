@@ -15,14 +15,17 @@ export interface Config {
   timeoutMs?: number
 }
 
+/** Default ASR endpoint; DSH_ASR_URL overrides it for sealed offline deliveries. */
+const DEFAULT_ASR_URL = process.env.DSH_ASR_URL ?? 'http://10.19.125.21:50000/api/v1/asr'
+
 export const Config: z<Config> = z.object({
-  asrUrl: z.string().default('http://10.19.125.21:50000/api/v1/asr'),
+  asrUrl: z.string().default(DEFAULT_ASR_URL),
   maxBytes: z.natural().default(25 * 1024 * 1024),
   timeoutMs: z.natural().default(30_000),
 })
 
 const DEFAULT_CONFIG: Required<Config> = {
-  asrUrl: 'http://10.19.125.21:50000/api/v1/asr',
+  asrUrl: DEFAULT_ASR_URL,
   maxBytes: 25 * 1024 * 1024,
   timeoutMs: 30_000,
 }

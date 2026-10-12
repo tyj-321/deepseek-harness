@@ -7,6 +7,7 @@
  */
 
 import type { ClientContext, SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import z from '@deepseek-ai/schemastery'
 // Type-only: pulls the ui-conversation SlotMap merge (the input.right/overlay entries).
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
@@ -35,11 +36,24 @@ const NS = 'voice'
 /** Required services: the slot registry, the settings binder, and the copy. */
 export const inject = ['slots', 'locale', 'settingsScope']
 
+export interface Config {
+  /**
+   * Register the voice row in General settings (default true). Sealed
+   * deliveries set false so on-site users cannot touch voice settings.
+   */
+  settingsRow?: boolean
+}
+
+export const Config: z<Config> = z.object({
+  settingsRow: z.boolean().default(true),
+})
+
 /**
  * Client plugin body: the voice button, overlay, and settings row.
  * @param ctx - client root context.
+ * @param config - validated {@link Config}.
  */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: ClientContext, config?: Config): void {
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-voice-input: dictionaries')
 
   const policy = new VoiceSettingsPolicy(
@@ -108,15 +122,17 @@ export function apply(ctx: ClientContext): void {
     return dispose
   })
 
-  // Settings row.
-  ctx.slots.inject('settings.general.item', () => ctx.slots.register({
-    name: 'settings.general.item',
-    id: 'voice-input',
-    order: 30,
-    locale: NS,
-    inject: (): VoiceSettingsRowInjected => ({
-      hooks: { voice: policy.store },
-      setField: (field, value) => { policy.setField(field, value) },
-    }),
-  }, VoiceSettingsRow))
+  // Settings row (omitted in sealed deliveries via config.settingsRow: false).
+  if (config?.settingsRow !== false) {
+    ctx.slots.inject('settings.general.item', () => ctx.slots.register({
+      name: 'settings.general.item',
+      id: 'voice-input',
+      order: 30,
+      locale: NS,
+      inject: (): VoiceSettingsRowInjected => ({
+        hooks: { voice: policy.store },
+        setField: (field, value) => { policy.setField(field, value) },
+      }),
+    }, VoiceSettingsRow))
+  }
 }
