@@ -61,6 +61,12 @@ export interface WebBootEntry {
   immediately?: boolean
   /** Non-baseline module specifiers this row requests; omitted when it requests none. */
   external?: string[]
+  /**
+   * Plugin config copied from the matching host tree row (`options.config`),
+   * e.g. a profile patch's `config:` overlay. JSON value (the graph is
+   * JSON-serialized into the page); omitted when the host row carries none.
+   */
+  config?: unknown
 }
 
 /** The composed client entry graph the host injects as `window.__DSH_BOOT__`. */
@@ -95,6 +101,8 @@ export interface BootPluginRow {
   inject: string[]
   /** Stage-one prefetch tier (false when the wire omits it). */
   immediately: boolean
+  /** Host tree row config, passed to entry creation (absent when the wire omits it). */
+  config?: unknown
 }
 
 /** The parsed boot manifest: one wire, two consumer views. */
@@ -182,6 +190,9 @@ export function parseBootManifest(wire: unknown): BootManifest {
       id: row.id,
       inject: inject === undefined ? [] : [...inject],
       immediately: row.immediately === true,
+      // Config passes through unvalidated: the plugin's own Config schema
+      // validates it at fiber start, exactly as on the host side.
+      ...(row.config === undefined ? {} : { config: row.config }),
     })
   }
   return { rev: graph.rev, modules, plugins }

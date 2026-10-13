@@ -164,7 +164,7 @@ function shortHash(input: string | Buffer): string {
 }
 
 /** Graph row for one bundle rev (url carries the rev as its cache-busting query). */
-function graphRow(id: string, rev: string, fields: WebBootRowFields): WebBootEntry {
+function graphRow(id: string, rev: string, fields: WebBootRowFields, config?: unknown): WebBootEntry {
   return {
     id,
     url: `/plugins/${id}/client.js?rev=${rev}`,
@@ -172,7 +172,15 @@ function graphRow(id: string, rev: string, fields: WebBootRowFields): WebBootEnt
     ...(fields.inject !== undefined ? { inject: fields.inject } : {}),
     ...(fields.immediately ? { immediately: true } : {}),
     ...(fields.external.length > 0 ? { external: fields.external } : {}),
+    // The host tree row's options.config rides the wire so the browser-side
+    // entry is created with the same config the host plugin received.
+    ...(config !== undefined ? { config } : {}),
   }
+}
+
+/** JSON comparison key for config change detection (undefined stays distinct from any value). */
+function configKey(config: unknown): string | undefined {
+  return config === undefined ? undefined : JSON.stringify(config)
 }
 
 /**
@@ -481,20 +489,30 @@ export class ClientModuleRegistry extends Service {
   /** Reconcile one entry name against the live loader entries. @returns whether the table changed. */
   private processOne(entryName: string): boolean {
     let qualifies = false
+    let config: unknown
     for (const entry of this.ctx.loader.entries()) {
       if (entry.options.name === entryName && entry.fiber !== undefined && !entry.disabled) {
         qualifies = true
+        config = entry.options.config
         break
       }
     }
     if (!qualifies) return this.table.delete(entryName)
-    if (this.table.has(entryName)) return false
+    const existing = this.table.get(entryName)
+    if (existing !== undefined) {
+      // The row survives fiber restarts, but a profile patch hot-reload that
+      // only rewrites config must still reach the page: rebuild the row (same
+      // rev — the bundle is unchanged) so the served graph picks it up.
+      if (configKey(existing.entry.config) === configKey(config)) return false
+      existing.entry = graphRow(entryName, existing.entry.rev, existing.meta, config)
+      return true
+    }
     const meta = this.resolveMeta(entryName)
     if (meta === null) return false
     // The rev rides the row from here on: a fiber restart reuses the row (and
     // its rev) untouched; only rebuilt() re-reads the bundle.
     const rev = this.initialBundleRevision(entryName, meta.clientPath)
-    this.table.set(entryName, { entry: graphRow(entryName, rev, meta), meta })
+    this.table.set(entryName, { entry: graphRow(entryName, rev, meta, config), meta })
     return true
   }
 
