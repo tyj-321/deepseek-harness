@@ -622,12 +622,12 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
     }
   }, 30_000)
 
-  it('anchors a relative add spec to the invoking directory, not the profile', async () => {
+  it('anchors a link spec with spaces and shell separators to the invoking directory', async () => {
     // `dsh plugin --profile x add .` from a plugin checkout must install THAT
     // checkout — pnpm's cwd is the profile directory, so an un-anchored `.`
     // would self-link the profile.
     const home = mkdtempSync(join(tmpdir(), 'dsh-plugin-anchor-'))
-    const checkout = mkdtempSync(join(tmpdir(), 'dsh-plugin-checkout-'))
+    const checkout = mkdtempSync(join(tmpdir(), 'dsh plugin & checkout-'))
     try {
       writeFileSync(join(checkout, 'package.json'), JSON.stringify({
         name: 'anchored-bundle',
@@ -635,7 +635,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
         dsh: { bundle: { patch: './cordis.patch.yml' } },
       }))
       writeFileSync(join(checkout, 'cordis.patch.yml'), '[]\n')
-      const result = await execa(process.execPath, [dshBin, 'plugin', '--profile', 'anchor', 'add', '.'], {
+      const result = await execa(process.execPath, [dshBin, 'plugin', '--profile', 'anchor', 'add', '--workspace-root', 'link:.'], {
         cwd: checkout,
         input: '',
         timeout: 60_000,
@@ -652,7 +652,7 @@ describe.skipIf(!existsSync(dshBin))('dsh BUILT bin (node lib/bin.js, no tsx)', 
       expect(manifest.dsh.profile.bundles).toContain('anchored-bundle')
 
       const removed = await runBuiltBin(
-        ['plugin', '--profile', 'anchor', 'remove', 'anchored-bundle'],
+        ['plugin', '--profile', 'anchor', 'remove', '--workspace-root', 'anchored-bundle'],
         { DSH_HOME: home },
         checkout,
       )
