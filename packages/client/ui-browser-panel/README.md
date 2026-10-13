@@ -10,6 +10,8 @@ The `browserPanel` service (`ctx.browserPanel`) is the cross-plugin face: it pub
 
 The `/client` exports are the plugin body (`apply`/`inject`), the service face (`IBrowserPanel`, `BrowserPanelController`), and the locale key type; the panel and trigger components remain package-internal behind the slot registrations.
 
+The web iframe permits downloads for static-page CSV export; the page response may impose a stricter sandbox.
+
 ## Model Experience
 
 None, as the panel renders web pages the model's results merely link to; nothing here reaches a model request.

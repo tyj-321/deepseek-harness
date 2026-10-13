@@ -314,7 +314,7 @@ export function BrowserPanel({ panel, t }: BrowserPanelProps) {
             key={`${state.url}#${reloadSeq}`}
             src={state.url}
             className={css.guest}
-            sandbox="allow-scripts allow-same-origin allow-forms"
+            sandbox="allow-scripts allow-same-origin allow-forms allow-downloads"
             title={t('panel.title')}
             onLoad={() => { setLoading(false) }}
           />

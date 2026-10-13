@@ -178,7 +178,7 @@ const CORPUS: Record<string, string> = {
   'links-and-autolinks': [
     '[https ok](https://example.com "with title") and [mailto ok](mailto:dev@example.com).',
     '',
-    '[relative dropped](/settings) and [js dropped](javascript:alert(1)) and [upper kept](HTTPS://example.com).',
+    '[relative dropped](settings) and [js dropped](javascript:alert(1)) and [upper kept](HTTPS://example.com).',
     '',
     '<https://deepseek.com> and bare autolink https://autolink.example.com literal.',
     '',

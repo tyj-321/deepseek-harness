@@ -256,11 +256,11 @@ describe('MarkdownText', () => {
     }
   })
 
-  it('neutralizes raw HTML, unsafe or relative links, and unsupported images', () => {
+  it('neutralizes raw HTML, unsafe or non-root relative links, and unsupported images', () => {
     const markdown = [
       '<script>globalThis.compromised = true</script>',
       '<img src="x" onerror="globalThis.compromised = true">',
-      '[script](javascript:alert(1)) [relative](/settings)',
+      '[script](javascript:alert(1)) [relative](settings)',
       '[mail](mailto:dev@example.com) [web](http://example.com) [upper](HTTPS://example.com)',
       '![relative diagram](private.png)',
       '![absolute diagram](/workspace/private.png)',
@@ -283,6 +283,17 @@ describe('MarkdownText', () => {
     expect(screen.getByText('file diagram')).toBeTruthy()
     expect(screen.getByText('script diagram')).toBeTruthy()
     expect(screen.getByText('mail diagram')).toBeTruthy()
+  })
+
+  it('opens a root-relative report link using the viewing browser origin', () => {
+    const path = '/api/skill-reports/1234567890abcdef1234567890abcdef/index.html'
+    const opened: string[] = []
+    render(<MarkdownText text={`[查看看板](${path}) [跨域](//other.example.com/x)`} onOpenUrl={url => opened.push(url)} />)
+    const link = screen.getByRole('link', { name: '查看看板' })
+    expect(link.getAttribute('href')).toBe(new URL(path, location.href).href)
+    fireEvent.click(link)
+    expect(opened).toEqual([new URL(path, location.href).href])
+    expect(screen.getByText('跨域').closest('a')).toBeNull()
   })
 
   it('keeps incomplete streaming Markdown renderable', () => {
