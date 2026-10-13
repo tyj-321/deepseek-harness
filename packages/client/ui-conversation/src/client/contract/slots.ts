@@ -486,6 +486,12 @@ export interface ConversationInjected {
    */
   selectWorkspace: (workspaceId: WorkspaceId) => Promise<void>
   /**
+   * Whether the hero workspace chip (and the composer's workspace-request
+   * trigger) renders. Sealed deliveries pass `false` via plugin config so the
+   * workspace concept stays invisible; defaults to true.
+   */
+  workspaceChip?: boolean
+  /**
    * Framework-bound sources. `composerBlock` is this session's block when a
    * plugin raised one; the reason is the blocker's own localized copy, which
    * the root renders as the inert composer's placeholder.

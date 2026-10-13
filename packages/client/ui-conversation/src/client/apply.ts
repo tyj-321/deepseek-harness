@@ -1,5 +1,6 @@
 /** Registers the conversation components, shared store, and service callbacks. */
 import type { Context } from '@deepseek-ai/cordis'
+import z from '@deepseek-ai/schemastery'
 import { resolveSlotLabel, type BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   resolveWorkspacePath, type ISessions, type SessionId,
@@ -112,10 +113,27 @@ function selectApproval({ interactions }: ComposerChainProps): ApprovalWait | nu
   return interactions.find((i): i is ApprovalWait => i.kind === 'approval') ?? null
 }
 
+/** Plugin config (profile patch `config:` seat). */
+export interface Config {
+  /**
+   * Hero workspace chip + its picker trigger. Sealed deliveries set
+   * `workspaceChip: false` (alongside disabling ui-workspace) so end users
+   * never see the workspace concept; the composer then relies on the
+   * auto-connected Workspace seeded into the profile storage.
+   */
+  workspaceChip?: boolean
+}
+
+export const Config: z<Config> = z.object({
+  workspaceChip: z.boolean().default(true),
+})
+
 /** Mounts the conversation plugin.
  * @param ctx - Client root context.
+ * @param config - validated {@link Config}.
  */
-export function apply(ctx: Context): void {
+export function apply(ctx: Context, config?: Config): void {
+  const showWorkspaceChip = config?.workspaceChip !== false
   const sessions = ctx.sessions
   const workspaces = ctx.workspaces
   const layout = ctx.layout
@@ -214,6 +232,7 @@ export function apply(ctx: Context): void {
       'conversation.hero.agentPreset': { kind: 'single', scope: 'root' },
     },
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
+      workspaceChip: showWorkspaceChip,
       hooks: { composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId) },
       selectWorkspace: async (workspaceId) => {
         const nextId = await workspaces.connectWorkspace(workspaceId)

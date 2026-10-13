@@ -14,7 +14,7 @@ export type ConversationRootProps = ConversationSlotProps
 
 export function ConversationRoot({
   sessionId, useSession, useSessions, useWorkspaces, useInput, useComposerBlock,
-  renderSlot, renderSlotChain, selectWorkspace, t,
+  renderSlot, renderSlotChain, selectWorkspace, workspaceChip = true, t,
 }: ConversationRootProps) {
   const openState = useSession(s => s.openState)
   const composerPhase = useSession(s => s.composerPhase)
@@ -99,13 +99,15 @@ export function ConversationRoot({
 
   const heroWorkspaceRow = (
     <div className={css.heroWorkspaceRow}>
-      <WorkspaceChip
-        buttonRef={pickerAnchor}
-        label={chipTitle}
-        menuOpen={pickerOpen}
-        onClick={() => { setPickerOpen(open => !open) }}
-        t={t}
-      />
+      {workspaceChip && (
+        <WorkspaceChip
+          buttonRef={pickerAnchor}
+          label={chipTitle}
+          menuOpen={pickerOpen}
+          onClick={() => { setPickerOpen(open => !open) }}
+          t={t}
+        />
+      )}
       {renderSlot('conversation.hero.workspace', {
         open: pickerOpen,
         anchorRef: pickerAnchor,
@@ -139,8 +141,8 @@ export function ConversationRoot({
       ? {
         disabled: true,
         placeholder: t('placeholder.workspace'),
-        workspacePickerOpen: pickerOpen,
-        onRequestWorkspace: () => { setPickerOpen(true) },
+        workspacePickerOpen: workspaceChip && pickerOpen,
+        ...(workspaceChip ? { onRequestWorkspace: () => { setPickerOpen(true) } } : {}),
       }
       : blocked
         // `blocked`, not `disabled`: the bar refuses input either way, but a
