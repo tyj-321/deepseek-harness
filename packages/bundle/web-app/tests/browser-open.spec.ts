@@ -32,9 +32,15 @@ afterEach(async () => {
 })
 
 describe('web app browser startup', () => {
-  it('opens the canonical URL only after the complete page is reachable', async () => {
+  it('opens the canonical URL with static skill reports available without a catalog plugin', async () => {
     const root = mkdtempSync(join(tmpdir(), 'dsh-web-browser-open-'))
     tempRoots.push(root)
+    vi.stubEnv('DSH_HOME', root)
+    const reportId = '1234567890abcdef1234567890abcdef'
+    const reportDir = join(root, 'reports', reportId)
+    mkdirSync(reportDir, { recursive: true })
+    writeFileSync(join(reportDir, 'index.html'), '<!doctype html><script>window.ready=true</script>静态看板')
+    writeFileSync(join(reportDir, 'snapshot.json'), '{"private":true}')
     const dist = join(root, 'dist')
     mkdirSync(dist)
     const index = join(dist, 'index.html')
@@ -80,7 +86,7 @@ describe('web app browser startup', () => {
     const opened = new Promise<void>((resolve) => { resolveOpened = resolve })
     internals.openBrowser = async (url) => {
       openedUrl = url
-      openedStatus = (await fetch(url)).status
+      openedStatus = (await fetch(`${url}/iscai-dsh/`)).status
       resolveOpened()
     }
 
@@ -97,5 +103,18 @@ describe('web app browser startup', () => {
 
     expect(openedUrl).toBe(`http://127.0.0.1:${String(ctx.webServer.port)}`)
     expect(openedStatus).toBe(200)
+    const reportUrl = `${openedUrl}/api/skill-reports/${reportId}/index.html`
+    const report = await fetch(reportUrl)
+    expect(report.status).toBe(200)
+    expect(report.headers.get('content-type')).toContain('text/html')
+    expect(report.headers.get('content-security-policy')).toContain('sandbox allow-scripts allow-downloads')
+    expect(await report.text()).toContain('window.ready=true')
+    const head = await fetch(reportUrl, { method: 'HEAD' })
+    expect(head.status).toBe(200)
+    expect(await head.text()).toBe('')
+    expect((await fetch(reportUrl, { method: 'POST' })).status).toBe(405)
+    for (const path of [`${reportId}/snapshot.json`, '00000000000000000000000000000000/index.html', `${reportId}/../.isc-credentials.json`]) {
+      expect((await fetch(`${openedUrl}/api/skill-reports/${path}`)).status).toBe(404)
+    }
   })
 })
