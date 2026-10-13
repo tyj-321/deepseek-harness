@@ -10,6 +10,8 @@
 
 `/client` 导出为插件主体（`apply`/`inject`）、服务门面（`IBrowserPanel`、`BrowserPanelController`）与语言键类型；面板与触发按钮组件保持在槽位注册之后，为包内私有。
 
+Web iframe允许下载以支持静态页面导出CSV；页面响应可以施加更严格的沙箱限制。
+
 ## 模型体验
 
 无，面板渲染的只是模型结果所链接的网页；此处不产生任何模型请求。

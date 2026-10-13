@@ -35,8 +35,15 @@ export interface MarkdownCodeLabels {
   copiedLabel?: string | undefined
 }
 
-function sanitizeUrl(url: string): string {
+function sanitizeUrl(url: string, allowRootRelative = false): string {
   try {
+    // Root-relative destinations use the viewer's web origin, so a remote
+    // deployment never substitutes the server's loopback address in a link.
+    if (allowRootRelative && url.startsWith('/') && !url.startsWith('//') && typeof location !== 'undefined') {
+      const destination = new URL(url, location.href)
+      if (['http:', 'https:'].includes(destination.protocol) && destination.origin === location.origin) return destination.href
+      return ''
+    }
     switch (new URL(url).protocol) {
       case 'http:':
       case 'https:':
@@ -46,7 +53,7 @@ function sanitizeUrl(url: string): string {
         return ''
     }
   } catch {
-    // Relative and otherwise unparsable destinations are disallowed alongside
+    // Non-root relative and otherwise unparsable destinations are disallowed alongside
     // disallowed protocols; new URL() has no other failure mode for strings.
     return ''
   }
@@ -460,7 +467,7 @@ function renderTableRow(
 
 /** Anchor over an already-authored href: allowlisted or unwrapped, external links get the safe attributes. */
 function renderSafeLink(href: string, children: ReactNode[], key: Key, onOpenUrl?: (url: string) => void): ReactNode {
-  const safeHref = sanitizeUrl(href)
+  const safeHref = sanitizeUrl(href, true)
   if (safeHref === '') return <Fragment key={key}>{children}</Fragment>
   const external = ['http:', 'https:'].includes(new URL(safeHref).protocol)
   // The in-app opener takes over external navigation; href stays for the

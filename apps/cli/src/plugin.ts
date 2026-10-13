@@ -112,6 +112,19 @@ function anchorPathSpec(argument: string, cwd: string): string {
 }
 
 /**
+ * Quote whitespace and command separators in pnpm arguments passed through cmd.exe.
+ * Node's shell invocation joins argv without quoting; backslashes remain literal.
+ * Non-shell arguments and arguments already containing double quotes pass through unchanged.
+ * @param argument - one pnpm argument.
+ * @param shell - whether the invocation goes through the command shell.
+ * @returns the argument, quoted when the shell would otherwise split it.
+ */
+function shellQuote(argument: string, shell: boolean): string {
+  if (!shell || argument.includes('"')) return argument
+  return /[\s&|<>^]/u.test(argument) ? '"' + argument + '"' : argument
+}
+
+/**
  * Run one `dsh plugin` invocation: init if needed, forward to pnpm, reconcile.
  * @param profile - the profile name.
  * @param args - pnpm arguments with relative path specs anchored to the invoking directory.
@@ -125,11 +138,13 @@ export function runPlugin(profile: string, args: readonly string[]): number {
   }
   const before = readProfileManifest(NAME, dir)
   // Windows resolves pnpm through its .cmd shim, which spawn() refuses
-  // without a shell since the CVE-2024-27980 hardening.
-  const result = spawnSync('pnpm', args.map(argument => anchorPathSpec(argument, process.cwd())), {
+  // without a shell since the CVE-2024-27980 hardening. Quote spaces and
+  // command separators so local path specs remain one pnpm argument.
+  const shell = process.platform === 'win32'
+  const result = spawnSync('pnpm', args.map(argument => shellQuote(anchorPathSpec(argument, process.cwd()), shell)), {
     cwd: dir,
     stdio: 'inherit',
-    shell: process.platform === 'win32',
+    shell,
   })
   if (result.error !== undefined) {
     const code = (result.error as NodeJS.ErrnoException).code

@@ -14,7 +14,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { networkInterfaces } from 'node:os'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { addHarnessSourceSection } from '@deepseek-ai/dsh-app-boot'
@@ -23,6 +23,8 @@ import * as SkillImport from '@deepseek-ai/dsh-skill-import'
 import * as VoiceAsr from '@deepseek-ai/dsh-voice-asr'
 import { launchEnvironmentOf } from '@deepseek-ai/dsh-launch-environment'
 import { scrubbedParentEnv } from '@deepseek-ai/dsh-subprocess'
+import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { makeReportRoute } from './reports.ts'
 import type {} from '@deepseek-ai/cordis-plugin-loader'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-system-prompt'
@@ -90,7 +92,7 @@ function launchedThroughSsh(ctx: Context): boolean {
   })
 }
 
-const BROWSER_OPENER_MODULE = import.meta.resolve('open')
+const BROWSER_OPENER_MODULE = pathToFileURL(createRequire(import.meta.url).resolve('open')).href
 
 const BROWSER_OPENER_PROGRAM = `
 try {
@@ -244,6 +246,7 @@ export function apply(ctx: Context, config: Config): void {
     basePath: process.env.DSH_WEB_BASE ?? '/iscai-dsh',
   })
   ctx.plugin(SkillImport, { maxZipSize: 10 * 1024 * 1024 })
+  ctx.effect(() => ctx.webServer.register(makeReportRoute(resolveDshHome())), 'web-app: skill reports')
   ctx.plugin(VoiceAsr, {})
   if (config.surfaceContext) {
     ctx.inject(['systemPrompt'], (promptCtx) => {
