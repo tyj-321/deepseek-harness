@@ -5,6 +5,10 @@ import SkillList from './SkillList'
 import ImportDialog from './ImportDialog'
 import PreviewDialog from './PreviewDialog'
 
+// favicon 的 link href 已被 vite 按 base 重写，直接借来用（免 import.meta.env 类型依赖）
+const faviconHref =
+  document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.href ?? '/favicon-32.png'
+
 export default function App() {
   const [skills, setSkills] = useState<SkillInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,7 +72,7 @@ export default function App() {
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-        <img src={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}favicon.svg`} alt="ISC 智能助手" width={32} height={32} />
+        <img src={faviconHref} alt="ISC 智能助手" width={32} height={32} />
         <span style={{ fontSize: '16px', fontWeight: 600, color: '#2b2b3a' }}>ISC 智能助手</span>
       </div>
       <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>技能包管理</h1>
