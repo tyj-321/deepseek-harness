@@ -144,11 +144,13 @@ function nextSessionOrderAccount({
 }
 
 /** Grouping and ordering menu; own open state so it resets with the wide chrome. */
-function ViewOptionsMenu({ groupBy, orderBy, onGroupPick, onOrderPick, t }: {
+function ViewOptionsMenu({ groupBy, orderBy, onGroupPick, onOrderPick, flatOnly, t }: {
   groupBy: 'workspace' | 'flat'
   orderBy: SessionOrderBy
   onGroupPick: (mode: 'workspace' | 'flat') => void
   onOrderPick: (mode: SessionOrderBy) => void
+  /** Sealed flat-list composition: the group-by section is not offered. */
+  flatOnly: boolean
   t: WorkspaceBrowserProps['t']
 }) {
   const [open, setOpen] = useState(false)
@@ -157,10 +159,12 @@ function ViewOptionsMenu({ groupBy, orderBy, onGroupPick, onOrderPick, t }: {
       open={open}
       onClose={() => { setOpen(false) }}
       items={[
-        { type: 'label' as const, id: 'group-by', text: t('groupBy.label') },
-        { id: 'workspace', label: t('groupBy.workspace') },
-        { id: 'flat', label: t('groupBy.flat') },
-        { type: 'separator' as const, id: 'order-by-separator' },
+        ...flatOnly ? [] : [
+          { type: 'label' as const, id: 'group-by', text: t('groupBy.label') },
+          { id: 'workspace', label: t('groupBy.workspace') },
+          { id: 'flat', label: t('groupBy.flat') },
+          { type: 'separator' as const, id: 'order-by-separator' },
+        ],
         { type: 'label' as const, id: 'order-by', text: t('orderBy.label') },
         { id: 'manual', label: t('orderBy.manual') },
         { id: 'updated', label: t('orderBy.updated') },
@@ -744,6 +748,7 @@ function SearchResults({
 export function WorkspaceBrowser({
   wide,
   expandSidebar,
+  flatSessionList,
   useSessions,
   useWorkspaces,
   useStore,
@@ -772,7 +777,9 @@ export function WorkspaceBrowser({
   // Live occupancy of this surface's directory-flow hole (the same source the
   // flow reads): a composition without a picking affordance can add nothing.
   const directoryFlowAvailable = useDirectoryFlow(occupied => occupied)
-  const groupBy = useStore(s => s.groupBy)
+  const storedGroupBy = useStore(s => s.groupBy)
+  // Sealed flat-list composition overrides any persisted grouping choice.
+  const groupBy = flatSessionList ? 'flat' as const : storedGroupBy
   const orderBy = useStore(s => s.orderBy)
   const groupExpansion = useStore(s => s.groupExpansion)
   const sessionOrderByAccount = useStore(s => s.sessionOrderByAccount)
@@ -1079,13 +1086,15 @@ export function WorkspaceBrowser({
               orderBy={orderBy}
               onGroupPick={(mode) => { actions.setGroupBy(mode) }}
               onOrderPick={(mode) => { actions.setOrderBy(mode) }}
+              flatOnly={flatSessionList}
               t={t}
             />
           )}
           {/* Adding is the button's one action, so a composition with no
               picking affordance has nothing to offer here: the region hides the
-              button rather than leaving a dead one in the header. */}
-          {directoryFlowAvailable && (
+              button rather than leaving a dead one in the header. The sealed
+              flat-list composition hides it as well — no workspace layer. */}
+          {directoryFlowAvailable && !flatSessionList && (
             <Tooltip label={t('workspace.add')} side="bottom" delayMs={500}>
               <button
                 ref={wsPlusRef}

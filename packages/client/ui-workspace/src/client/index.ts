@@ -11,6 +11,7 @@
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type { HostObservable } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import z from '@deepseek-ai/schemastery'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { WorkspaceBrowserInjected, WorkspacePickerInjected } from './contract/slots.ts'
@@ -45,13 +46,30 @@ const NS = 'workspace'
  */
 export const inject = ['slots', 'sessions', 'workspaces', 'locale', 'connection']
 
+/** Plugin config (profile patch `config:` seat). */
+export interface Config {
+  /**
+   * Flat session list without the workspace layer. Sealed deliveries set
+   * `flatSessionList: true` so the sidebar shows one recency-ordered session
+   * list: no workspace group rows, no group-by menu section, no add-workspace
+   * affordance. Session history stays fully visible and browsable.
+   */
+  flatSessionList?: boolean
+}
+
+export const Config: z<Config> = z.object({
+  flatSessionList: z.boolean().default(false),
+})
+
 /**
  * Register the browser and picker once their slot declarations are on the
  * ledger. Inject factories return plain callbacks; data reads use the
  * framework's global hooks.
  * @param ctx - client root context.
+ * @param config - validated {@link Config}.
  */
-export function apply(ctx: ClientContext): void {
+export function apply(ctx: ClientContext, config?: Config): void {
+  const flatSessionList = config?.flatSessionList === true
   const connection = ctx.get('connection') as ConnectionHandle
   const hostDescription = connection.hostDescription
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-workspace: dictionaries')
@@ -71,6 +89,7 @@ export function apply(ctx: ClientContext): void {
   const browserFlowSource = flowSource('sidebar.workspaces.directoryFlow')
   const pickerFlowSource = flowSource('conversation.hero.workspace.directoryFlow')
   const browserInjected = (): WorkspaceBrowserInjected => ({
+    flatSessionList,
     // Explicit group actions keep their target; unscoped New Session inherits
     // the current Session Workspace before the recent-Workspace fallback.
     startSession: (workspaceId) => { ctx.workspaces.startSession(workspaceId) },

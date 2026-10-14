@@ -88,6 +88,12 @@ export type DirectoryPickingHooks = PropsHooks<DirectoryPickingInjected['hooks']
  * browsing region drives.
  */
 export type WorkspaceBrowserInjected = {
+  /**
+   * Flat session list without the workspace layer (sealed deliveries): the
+   * browser renders one recency-ordered session list, hiding workspace group
+   * rows, the group-by menu section, and the add-workspace affordance.
+   */
+  flatSessionList: boolean
   hooks: DirectoryPickingInjected['hooks'] & {
     /** Current generation's Host description, bound by the slot renderer. */
     hostDescription: HostDescriptionSource
