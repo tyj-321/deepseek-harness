@@ -67,6 +67,10 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+        <img src={`${import.meta.env.BASE_URL.replace(/\/?$/, '/')}favicon.svg`} alt="ISC 智能助手" width={32} height={32} />
+        <span style={{ fontSize: '16px', fontWeight: 600, color: '#2b2b3a' }}>ISC 智能助手</span>
+      </div>
       <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>技能包管理</h1>
       <p style={{ color: '#666', marginBottom: '24px' }}>
         导入的技能包会在每次对话开头自动出现在可用技能列表里，模型根据描述自主决定是否调用。
