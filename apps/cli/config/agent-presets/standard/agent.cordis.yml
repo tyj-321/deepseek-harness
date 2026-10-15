@@ -245,8 +245,15 @@
 
 # The `web` service and its search provider stay in the host composition; only
 # the model-facing tool is per-session.
+#
+# `DSH_WEB_TOOL=off` disables the row where a deployment offers no web search at
+# all. DISABLED, not registered-but-unusable: `dsh-agent-presets` fails the
+# whole mount when an enabled row never activates, so a deployment that also
+# drops the host `web` service would take every session on this preset down with
+# it. Unset — the default — the row behaves exactly as before.
 - id: tool-web
   name: '@deepseek-ai/dsh-tool-web'
   config:
     fetch: false
     searchTimeoutMs: 60000
+  disabled: !!js process.env.DSH_WEB_TOOL === 'off'
