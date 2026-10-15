@@ -301,6 +301,28 @@ describe('boot wire config', () => {
     expect(row?.config).toEqual({ trustedHosts: ['10.0.0.7'] })
   })
 
+  it('keeps the host row config when the client bundle is rehashed', () => {
+    const packageName = '@fixture/rebuild-keeps-config'
+    writeBuiltPackage(packageName, {})
+    const service = construct([{ name: packageName, config: { workspaceChip: false } }])
+    expect(service.graph().entries[0]?.config).toEqual({ workspaceChip: false })
+    const clientPath = service.clientPath(packageName)
+    if (clientPath === undefined) throw new Error('expected a composed client path')
+    writeFileSync(clientPath, 'module.exports = { rebuilt: true }\n')
+    expect(service.rebuilt(packageName)).toEqual(expect.any(String))
+    expect(service.graph().entries[0]?.config).toEqual({ workspaceChip: false })
+  })
+
+  it('wires config from a later same-name row when the first match carries none', () => {
+    const packageName = '@fixture/prefer-config-row'
+    writeBuiltPackage(packageName, {})
+    const [row] = construct([
+      { name: packageName },
+      { name: packageName, config: { workspaceChip: false, permissionChip: false } },
+    ]).graph().entries
+    expect(row?.config).toEqual({ workspaceChip: false, permissionChip: false })
+  })
+
   it('drops a node the host cannot evaluate rather than ship the expression to the page', () => {
     const packageName = '@fixture/wire-unresolved'
     writeBuiltPackage(packageName, {})

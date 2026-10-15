@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-runtime/client'
 import { apply, inject } from '../src/client/index.ts'
-import { OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
+import { HeroBrandMark, OfficialBrandMark, OfficialBrandName } from '../src/client/Brand.tsx'
 
 afterEach(() => {
   cleanup()
@@ -75,5 +75,45 @@ describe('official browser-brand plugin', () => {
     expect(mark.container.querySelector('svg')?.getAttribute('class')).toBe('hero-mark')
     mark.rerender(<OfficialBrandMark size={24} />)
     expect(mark.container.querySelector('svg')?.getAttribute('width')).toBe('24')
+  })
+
+  it('renders the hero mascot image at the requested size', () => {
+    const view = render(<HeroBrandMark size={128} className="hero-mascot" />)
+    const img = view.container.querySelector('img')
+    expect(img?.getAttribute('src')).toBe('/iscai-dsh/moren.png')
+    expect(img?.getAttribute('width')).toBe('128')
+    expect(img?.getAttribute('class')).toBe('hero-mascot')
+  })
+
+  it('resolves the hero mascot against the document icon base path', () => {
+    const link = document.createElement('link')
+    link.rel = 'icon'
+    link.setAttribute('href', 'https://example.test/iscai-dsh/favicon-32.png')
+    document.head.append(link)
+    const view = render(<HeroBrandMark size={128} />)
+    expect(view.container.querySelector('img')?.getAttribute('src')).toBe(
+      'https://example.test/iscai-dsh/moren.png',
+    )
+    link.remove()
+  })
+
+  it('falls back to the product dist path when the icon href is empty', () => {
+    const link = document.createElement('link')
+    link.rel = 'icon'
+    link.setAttribute('href', '')
+    document.head.append(link)
+    const view = render(<HeroBrandMark size={128} />)
+    expect(view.container.querySelector('img')?.getAttribute('src')).toBe('/iscai-dsh/moren.png')
+    link.remove()
+  })
+
+  it('falls back to the product dist path when the icon href is not a URL', () => {
+    const link = document.createElement('link')
+    link.rel = 'icon'
+    link.setAttribute('href', 'http://[')
+    document.head.append(link)
+    const view = render(<HeroBrandMark size={128} />)
+    expect(view.container.querySelector('img')?.getAttribute('src')).toBe('/iscai-dsh/moren.png')
+    link.remove()
   })
 })

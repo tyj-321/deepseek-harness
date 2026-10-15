@@ -14,6 +14,25 @@ export function OfficialBrandMark({ size, className }: OfficialBrandMarkProps) {
 }
 
 /**
+ * Render the hero brand mark: the product mascot image (served from the web
+ * frontend dist root) at the host-requested square size.
+ * @param props - Host-supplied mark presentation.
+ * @returns the product mascot mark.
+ */
+export function HeroBrandMark({ size, className }: HeroBrandMarkOwnerProps) {
+  let src = '/iscai-dsh/moren.png'
+  try {
+    const href = document.querySelector('link[rel="icon"][href]')?.getAttribute('href')
+    if (href !== undefined && href !== null && href !== '') {
+      src = new URL('moren.png', new URL(href, document.baseURI)).href
+    }
+  } catch {
+    src = '/iscai-dsh/moren.png'
+  }
+  return <img src={src} alt="" width={size} height={size} className={className} />
+}
+
+/**
  * Render the official name artwork without its independently slotted mark.
  * @returns the official name wordmark.
  */

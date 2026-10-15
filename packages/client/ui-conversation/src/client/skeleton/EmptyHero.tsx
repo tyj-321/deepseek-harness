@@ -7,10 +7,11 @@
 import { useId } from 'react'
 import type { ReactNode, RefObject } from 'react'
 import {
-  FishLogo, IconChevronDownOutline14, IconFolderClose16, IconFolderOpen16,
+  IconChevronDownOutline14, IconFolderClose16, IconFolderOpen16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { workspaceTitleOf } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ConversationSlotProps } from '../contract/slots.ts'
+import { distAsset } from './dist-asset.ts'
 import css from './HeroShell.module.css'
 
 /** The owner's locale seat type, passed to hero chrome as a plain prop. */
@@ -108,25 +109,40 @@ export interface HeroShellProps {
   children?: ReactNode
 }
 
+/** Square edge of the product mascot above the hero headline, in pixels. */
+const HERO_MASCOT_SIZE = 128
+
 /**
- * Render the hero chrome (headline only; no glow, no composer, no workspace
- * row — the glow is the owner's {@link HeroGlow}).
+ * Render the hero chrome (mascot + headline; no glow, no composer, no
+ * workspace row — the glow is the owner's {@link HeroGlow}).
  * @param props - see {@link HeroShellProps}.
  * @returns the centered hero element tree.
  */
 export function HeroShell({ t, renderSlot, children }: HeroShellProps) {
+  const mascot = (
+    <img
+      src={distAsset('moren.png')}
+      alt=""
+      width={HERO_MASCOT_SIZE}
+      height={HERO_MASCOT_SIZE}
+      className={css.mascotImg}
+    />
+  )
   return (
     <div className={css.root}>
       <div className={css.stack}>
-        <div className={css.headline}>
-          {/* figma 34:10412: fish 34×25 leading the headline, gap 10. */}
-          <span className={css.fishHitbox}>
-            {renderSlot('conversation.hero.brand.mark', { size: 34, className: css.fish }, {
-              fallback: <FishLogo size={34} className={css.fish} />,
+        <div className={css.mascot}>
+          {mascot}
+          {/* Keep the declared brand-mark hole mounted; the official occupant
+              is the whale SVG and must not replace the product mascot. */}
+          <span className={css.brandSlot}>
+            {renderSlot('conversation.hero.brand.mark', { size: HERO_MASCOT_SIZE, className: css.mascotImg }, {
+              fallback: mascot,
             })}
           </span>
-          <span className={css.headlineText}>{t('hero.headline')}</span>
-          <span className={css.previewBadge}>{t('hero.preview')}</span>
+        </div>
+        <div className={css.headline}>
+          <span className={css.headlineAccent}>{t('hero.headline')}</span>
         </div>
         <div className={css.body}>
           {/* The resident composer (ConversationRoot's root-owned scrollport;

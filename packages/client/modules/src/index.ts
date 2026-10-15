@@ -416,7 +416,9 @@ export class ClientModuleRegistry extends Service {
 
   /**
    * Re-hash one bundle (the HMR watch's registration hook — the only entry
-   * point through which bundle content changes reach the graph).
+   * point through which bundle content changes reach the graph). The row's
+   * existing boot config is kept so a content-only rebuild cannot drop a
+   * live profile patch from the served graph.
    * @param id - entry id (package name).
    * @returns the new rev, or undefined for an unknown id.
    */
@@ -425,7 +427,10 @@ export class ClientModuleRegistry extends Service {
     if (record === undefined) return undefined
     const rev = shortHash(readFileSync(record.meta.clientPath))
     if (rev === record.entry.rev) return rev
-    record.entry = graphRow(id, rev, record.meta)
+    // A content-only rebuild must keep the host row's config: dropping it
+    // would strip a live profile patch (e.g. workspaceChip: false) from the
+    // served graph until the next process restart.
+    record.entry = graphRow(id, rev, record.meta, record.entry.config)
     this.composed = this.compose()
     for (const notify of this.rebuildListeners) {
       // Containment: rebuilt() runs inside the HMR watch callback — a
@@ -535,9 +540,14 @@ export class ClientModuleRegistry extends Service {
     let qualifies = false
     let config: unknown
     for (const entry of this.ctx.loader.entries()) {
-      if (entry.options.name === entryName && entry.fiber !== undefined && !entry.disabled) {
-        qualifies = true
-        config = wireConfig(entry)
+      if (entry.options.name !== entryName || entry.fiber === undefined || entry.disabled) continue
+      qualifies = true
+      const next = wireConfig(entry)
+      // Several loader rows can share a package name (host apply plus a
+      // later profile overlay). Prefer the first row that actually carries
+      // config so an empty earlier match cannot hide a patch.
+      if (next !== undefined) {
+        config = next
         break
       }
     }

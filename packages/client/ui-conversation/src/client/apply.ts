@@ -1,6 +1,5 @@
 /** Registers the conversation components, shared store, and service callbacks. */
 import type { Context } from '@deepseek-ai/cordis'
-import z from '@deepseek-ai/schemastery'
 import { resolveSlotLabel, type BoundActions } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   resolveWorkspacePath, type ISessions, type SessionId,
@@ -43,6 +42,7 @@ import { en, NS, zh, type ConversationKey } from './locales.ts'
 import { registerConversationNodes } from './conversation-nodes/register.ts'
 import { registerChatNodeRenderers } from './chat/register-node-renderers.ts'
 import { CONVERSATION_SETTINGS_NAMESPACE, type ConversationSettings } from '../submission-settings.ts'
+import type { Config as ConversationPluginConfig } from '../plugin-config.ts'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -113,35 +113,13 @@ function selectApproval({ interactions }: ComposerChainProps): ApprovalWait | nu
   return interactions.find((i): i is ApprovalWait => i.kind === 'approval') ?? null
 }
 
-/** Plugin config (profile patch `config:` seat). */
-export interface Config {
-  /**
-   * Hero workspace chip + its picker trigger. Sealed deliveries set
-   * `workspaceChip: false` (alongside disabling ui-workspace) so end users
-   * never see the workspace concept; the composer then relies on the
-   * auto-connected Workspace seeded into the profile storage.
-   */
-  workspaceChip?: boolean
-  /**
-   * The composer's access chip — the permission-preset picker beside the
-   * model seat. Sealed deliveries set `permissionChip: false` (alongside
-   * disabling ui-permission) so end users cannot move a session off the
-   * preset the deployment pinned; the chip's own surfaces go with it, while
-   * the host `/permission` command stays available to operators.
-   */
-  permissionChip?: boolean
-}
-
-export const Config: z<Config> = z.object({
-  workspaceChip: z.boolean().default(true),
-  permissionChip: z.boolean().default(true),
-})
+export { Config } from '../plugin-config.ts'
 
 /** Mounts the conversation plugin.
  * @param ctx - Client root context.
  * @param config - validated {@link Config}.
  */
-export function apply(ctx: Context, config?: Config): void {
+export function apply(ctx: Context, config?: ConversationPluginConfig): void {
   const showWorkspaceChip = config?.workspaceChip !== false
   const showPermissionChip = config?.permissionChip !== false
   const sessions = ctx.sessions

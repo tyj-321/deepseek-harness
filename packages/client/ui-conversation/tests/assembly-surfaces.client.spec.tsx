@@ -172,6 +172,25 @@ describe('resident composer', () => {
     expect(view.container.querySelector('textarea')).toBe(hero)
     await runtime.dispose()
   })
+
+  it('hides the workspace chip when the profile patch sets workspaceChip false', async () => {
+    const runtime = await SlotTestRuntime.create()
+    runtime.provide('connection', { api: { settings: {} }, isLoopback: false })
+    runtime.provide('remote', { $on: () => () => {} })
+    runtime.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
+    runtime.provide('layout', { openDetails: vi.fn(), closeDetails: vi.fn() })
+    const locale = new LocaleRuntime(runtime.ctx)
+    runtime.provide('locale', locale)
+    runtime.slots.installLocale(locale)
+    await runtime.root.declare(LAYOUT_CHILDREN, AppRoot)
+    await runtime.mount({
+      inject: [...inject],
+      apply: (ctx) => { apply(ctx, { workspaceChip: false }) },
+    })
+    const view = runtime.renderRoot()
+    expect(view.queryByRole('button', { name: '选择工作区' })).toBeNull()
+    await runtime.dispose()
+  })
 })
 
 describe('prompt rejection through the assembled composer', () => {

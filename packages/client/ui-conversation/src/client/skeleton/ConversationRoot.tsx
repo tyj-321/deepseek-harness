@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
 import type { WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
+import { distAsset } from './dist-asset.ts'
 import { HeroGlow, HeroShell, WorkspaceChip, workspaceLabel } from './EmptyHero.tsx'
 import css from './ConversationRoot.module.css'
 
@@ -188,6 +189,19 @@ export function ConversationRoot({
 
   return (
     <div className={css.root} data-phase={phase}>
+      {/* Out-of-flow backdrop: wrapping the video keeps it from becoming a
+          flex child (a 100% tall in-flow video would push the transcript off
+          screen and look like a white column). */}
+      <div className={css.backdrop} aria-hidden="true">
+        <video
+          className={css.backgroundVideo}
+          src={distAsset('chat-bg.mp4')}
+          autoPlay
+          loop
+          muted
+          playsInline
+        />
+      </div>
       {renderSlot('conversation.session.header', {})}
       <div className={css.scrollBody} data-conversation-scroll="">
         {renderSlot('conversation.session', {})}
