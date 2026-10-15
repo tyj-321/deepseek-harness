@@ -492,6 +492,13 @@ export interface ConversationInjected {
    */
   workspaceChip?: boolean
   /**
+   * Whether the composer's access chip (the permission-preset picker)
+   * renders. Sealed deliveries pass `false` via plugin config so the session's
+   * permission is fixed by the deployment rather than chosen per session;
+   * defaults to true.
+   */
+  permissionChip?: boolean
+  /**
    * Framework-bound sources. `composerBlock` is this session's block when a
    * plugin raised one; the reason is the blocker's own localized copy, which
    * the root renders as the inert composer's placeholder.
@@ -549,6 +556,11 @@ export interface ComposerBarOwnerProps {
   disabled?: boolean
   /** Whether the shared Workspace picker menu is expanded, regardless of which trigger opened it. */
   workspacePickerOpen?: boolean
+  /**
+   * Whether the access chip (permission-preset picker) renders. Sealed
+   * deliveries pass `false`; defaults to true.
+   */
+  permissionChip?: boolean
   /** Open the existing Workspace picker from the inert textarea. */
   onRequestWorkspace?: () => void
   placeholder?: string

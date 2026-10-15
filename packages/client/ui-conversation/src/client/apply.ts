@@ -122,10 +122,19 @@ export interface Config {
    * auto-connected Workspace seeded into the profile storage.
    */
   workspaceChip?: boolean
+  /**
+   * The composer's access chip — the permission-preset picker beside the
+   * model seat. Sealed deliveries set `permissionChip: false` (alongside
+   * disabling ui-permission) so end users cannot move a session off the
+   * preset the deployment pinned; the chip's own surfaces go with it, while
+   * the host `/permission` command stays available to operators.
+   */
+  permissionChip?: boolean
 }
 
 export const Config: z<Config> = z.object({
   workspaceChip: z.boolean().default(true),
+  permissionChip: z.boolean().default(true),
 })
 
 /** Mounts the conversation plugin.
@@ -134,6 +143,7 @@ export const Config: z<Config> = z.object({
  */
 export function apply(ctx: Context, config?: Config): void {
   const showWorkspaceChip = config?.workspaceChip !== false
+  const showPermissionChip = config?.permissionChip !== false
   const sessions = ctx.sessions
   const workspaces = ctx.workspaces
   const layout = ctx.layout
@@ -233,6 +243,7 @@ export function apply(ctx: Context, config?: Config): void {
     },
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
       workspaceChip: showWorkspaceChip,
+      permissionChip: showPermissionChip,
       hooks: { composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId) },
       selectWorkspace: async (workspaceId) => {
         const nextId = await workspaces.connectWorkspace(workspaceId)
