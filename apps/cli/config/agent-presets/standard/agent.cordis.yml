@@ -21,11 +21,15 @@
 
 # The preset's own persona, shadowing the deployment default for this agent.
 # `{{model}}` and `{{cwd}}` resolve from the agent's own route and workspace.
+#
+# `DSH_PERSONA=isc` swaps in the sealed delivery's Chinese persona. The switch
+# belongs here and not in the deployment's profile patch: a scoped section
+# shadows the host's by name, so a patch can rewrite the deployment persona and
+# still never reach the model through this row.
 - id: persona
   name: '@deepseek-ai/dsh-persona'
   config:
-    text: >-
-      You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}.
+    text: !!js process.env.DSH_PERSONA === 'isc' && '你是 ISC 智能助手，由 {{model}} 模型驱动，当前工作目录是 {{cwd}}。\n无论用户用什么语言提问，都用简体中文回答；代码、命令和专有名词保持原文。\n用户说“这个页面”“这个界面”时，指的是他正在使用的网页界面；你没有它的 DOM、路由或截图的隐式上下文。' || 'You are a coding agent powered by the {{model}} model. Your working directory is {{cwd}}.'
 
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'
