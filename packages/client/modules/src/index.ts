@@ -29,7 +29,8 @@ import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { Service } from '@deepseek-ai/cordis'
 import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/cordis-plugin-loader'
+import { isJsExpr } from '@deepseek-ai/cordis-plugin-loader'
+import type { Entry } from '@deepseek-ai/cordis-plugin-loader'
 import type { IndexInjection } from '@deepseek-ai/dsh-host-webserver'
 import { optionalStringArray, stripClientSuffix } from './client/manifest.ts'
 import type { WebBootEntry, WebBootGraph } from './client/manifest.ts'
@@ -172,8 +173,9 @@ function graphRow(id: string, rev: string, fields: WebBootRowFields, config?: un
     ...(fields.inject !== undefined ? { inject: fields.inject } : {}),
     ...(fields.immediately ? { immediately: true } : {}),
     ...(fields.external.length > 0 ? { external: fields.external } : {}),
-    // The host tree row's options.config rides the wire so the browser-side
-    // entry is created with the same config the host plugin received.
+    // The host tree row's config (see wireConfig) rides the wire so the
+    // browser-side entry is created with the same config the host plugin
+    // received, resolved: the page cannot evaluate host-scope `!!js` nodes.
     ...(config !== undefined ? { config } : {}),
   }
 }
@@ -181,6 +183,48 @@ function graphRow(id: string, rev: string, fields: WebBootRowFields, config?: un
 /** JSON comparison key for config change detection (undefined stays distinct from any value). */
 function configKey(config: unknown): string | undefined {
   return config === undefined ? undefined : JSON.stringify(config)
+}
+
+/** Marker for a config node the host cannot resolve; the builders below drop it. */
+const UNRESOLVED = Symbol('client-modules: unresolved config expression')
+
+/**
+ * Config of one host row as it rides the boot wire.
+ *
+ * The row's raw config is forwarded so the browser-side entry starts with the
+ * same config the host plugin received, but a raw `!!js` node is an expression
+ * for the HOST loader: the page re-applies this config through the same Loader
+ * against a client context that provides none of the host services an
+ * expression names, so a node left unresolved fails the entry's activation
+ * there ("cannot get property \"webRuntime\" without inject" — the connection
+ * row's `ctx.webRuntime.trustedHosts`) and takes the whole client plugin down
+ * with it. Evaluate each expression against the host entry's own context, which
+ * is the value the host plugin itself received, and drop what the host cannot
+ * evaluate (a host-side fact with no client meaning).
+ * @param entry - live host loader entry backing one client row.
+ * @returns the row config with every `!!js` node replaced by its host value.
+ */
+function wireConfig(entry: Entry): unknown {
+  const resolve = (value: unknown): unknown => {
+    if (isJsExpr(value)) {
+      try {
+        return entry.evaluate(value.__jsExpr)
+      } catch {
+        return UNRESOLVED
+      }
+    }
+    if (value === null || typeof value !== 'object') return value
+    if (Array.isArray(value)) {
+      return value.map(resolve).filter(item => item !== UNRESOLVED)
+    }
+    const resolved: Record<string, unknown> = {}
+    for (const [key, item] of Object.entries(value)) {
+      const next = resolve(item)
+      if (next !== UNRESOLVED) resolved[key] = next
+    }
+    return resolved
+  }
+  return resolve(entry.options.config)
 }
 
 /**
@@ -493,7 +537,7 @@ export class ClientModuleRegistry extends Service {
     for (const entry of this.ctx.loader.entries()) {
       if (entry.options.name === entryName && entry.fiber !== undefined && !entry.disabled) {
         qualifies = true
-        config = entry.options.config
+        config = wireConfig(entry)
         break
       }
     }

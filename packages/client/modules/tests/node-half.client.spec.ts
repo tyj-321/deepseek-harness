@@ -50,14 +50,30 @@ function writeBuiltPackage(packageName: string, client: Record<string, unknown>)
   writeFileSync(clientPath, 'module.exports = {}\n')
 }
 
+/** Loader entry fixture: the fields the registry reads, plus `evaluate` for `!!js` config nodes. */
+interface EntryFixture {
+  name: string
+  config?: unknown
+  evaluate?: (expr: string) => unknown
+}
+
 /** Construct the node-half service and capture its plugin-bundle route. */
-function constructWithRoute(packageNames: string[]): { service: ClientModuleRegistry; route: WebRoute } {
+function constructWithRoute(entries: (string | EntryFixture)[]): { service: ClientModuleRegistry; route: WebRoute } {
   const ctx = new Context()
   ctx.baseUrl = pathToFileURL(root!).href + '/'
   ctx.provide('loader', {
     *entries() {
-      for (const packageName of packageNames) {
-        yield { options: { name: packageName }, fiber: {}, disabled: false }
+      for (const entry of entries) {
+        const fixture = typeof entry === 'string' ? { name: entry } : entry
+        yield {
+          options: {
+            name: fixture.name,
+            ...(fixture.config !== undefined ? { config: fixture.config } : {}),
+          },
+          fiber: {},
+          disabled: false,
+          ...(fixture.evaluate !== undefined ? { evaluate: fixture.evaluate } : {}),
+        }
       }
     },
   })
@@ -77,8 +93,8 @@ function constructWithRoute(packageNames: string[]): { service: ClientModuleRegi
 }
 
 /** Construct the node-half service over the enabled fixture entries. */
-function construct(packageNames: string[]): ClientModuleRegistry {
-  return constructWithRoute(packageNames).service
+function construct(entries: (string | EntryFixture)[]): ClientModuleRegistry {
+  return constructWithRoute(entries).service
 }
 
 /** Execute the exact first inline script emitted by the Host boot rows. */
@@ -270,6 +286,35 @@ describe('shared module declarations', () => {
     writeBuiltPackage(packageName, { external: 'react' })
     expect(() => construct([packageName]))
       .toThrow(`client-modules: ${packageName} dsh.client.external must be a string array`)
+  })
+})
+
+describe('boot wire config', () => {
+  it('evaluates a host-scope `!!js` node against the entry before it rides the wire', () => {
+    const packageName = '@fixture/wire-resolved'
+    writeBuiltPackage(packageName, {})
+    const [row] = construct([{
+      name: packageName,
+      config: { trustedHosts: { __jsExpr: 'ctx.webRuntime.trustedHosts' } },
+      evaluate: () => ['10.0.0.7'],
+    }]).graph().entries
+    expect(row?.config).toEqual({ trustedHosts: ['10.0.0.7'] })
+  })
+
+  it('drops a node the host cannot evaluate rather than ship the expression to the page', () => {
+    const packageName = '@fixture/wire-unresolved'
+    writeBuiltPackage(packageName, {})
+    const [row] = construct([{
+      name: packageName,
+      config: { trustedHosts: { __jsExpr: 'ctx.webRuntime.trustedHosts' }, keep: 'literal' },
+      // The browser-side loader re-applies this config with a client Context
+      // that provides no host service, which is how the failure surfaced.
+      evaluate: () => {
+        throw new Error('cannot get property "webRuntime" without inject')
+      },
+    }]).graph().entries
+    expect(row?.config).toEqual({ keep: 'literal' })
+    expect(JSON.stringify(row)).not.toContain('__jsExpr')
   })
 })
 
