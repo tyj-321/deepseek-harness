@@ -16,14 +16,15 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  /* figma 75:8208: 12 between title block / workspace / card. */
-  gap: 12px;
+  /* Product: tighter than figma 75:8208 (12) so mascot / title / card read as
+     one unit. */
+  gap: 8px;
   width: 100%;
   max-width: var(--dsh-composer-card-max-width);
   overflow: visible;
 }
 
-/* Product hero: 128px mascot sits above a centered title. */
+/* Product hero: 96px mascot sits above a centered title. */
 .mascot {
   display: flex;
   justify-content: center;
@@ -31,8 +32,8 @@
 
 .mascotImg {
   display: block;
-  width: 128px;
-  height: 128px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
 }
 
@@ -43,8 +44,8 @@
 .headline {
   display: flex;
   justify-content: center;
-  font-size: 26px;
-  line-height: 32px;
+  font-size: 24px;
+  line-height: 30px;
   font-weight: 500;
 }
 
@@ -58,14 +59,14 @@
   color: transparent;
 }
 
-/* Workspace row sits 12px above the input card (figma y80 → y112). The blue
+/* Workspace row sits just above the input card. The blue
    glow lives with the owner (ConversationRoot .heroGlow) so it can center on
    the input card. */
 .body {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   min-width: 0;
   overflow: visible;
 }

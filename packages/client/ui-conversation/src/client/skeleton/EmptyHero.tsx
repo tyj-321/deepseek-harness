@@ -110,7 +110,7 @@ export interface HeroShellProps {
 }
 
 /** Square edge of the product mascot above the hero headline, in pixels. */
-const HERO_MASCOT_SIZE = 128
+const HERO_MASCOT_SIZE = 96
 
 /**
  * Render the hero chrome (mascot + headline; no glow, no composer, no
